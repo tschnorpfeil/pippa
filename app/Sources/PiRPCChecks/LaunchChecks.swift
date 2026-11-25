@@ -74,17 +74,27 @@ import PiRPC
 
     // A background routine's Pi (package 1): reading only, whatever else is switched on.
     let readOnly = PippaPiLaunch.Capabilities(readOnly: true)
+    let readOnlyAndOnline = PippaPiLaunch.Capabilities(web: true, memory: true, online: .init(mcpTools: ["calendar_add"]), readOnly: true)
     let routine = PippaPiLaunch.configuration(launcher: launcher, workingDirectory: t, paths: paths, sessionID: "routine", language: "de",
                                               capabilities: readOnly)
+    let routineForced = PippaPiLaunch.configuration(launcher: launcher, workingDirectory: t, paths: paths, sessionID: nil, language: "de",
+                                                    capabilities: readOnlyAndOnline)
     let routineTools = value(routine.arguments, after: "--tools")?.split(separator: ",").map(String.init) ?? []
-    let forbidden = ["bash", "write", "move_files", "remember", "ask", "web_search", "fetch_content"]
-    check("A read-only routine gets only reading tools, Pippa's tools and helps, no memory, web, shell or questions",
+    let forbidden = ["bash", "write", "move_files", "remember", "ask", "web_search", "fetch_content", "codemode"]
+    check("A read-only routine gets only reading tools, Pippa's tools and helps, no memory, web, shell, skills or questions",
           routineTools == ["read", "search_files", "list_folder", "mcp__pippa__*"] && PippaPiLaunch.tools(readOnly) == routineTools
           && !routineTools.contains { forbidden.contains($0) }
           && routine.extensions == ["pippa-tools.ts", "pippa-assist.ts"].map { t.appendingPathComponent($0) }
           && !routine.extensions.contains(web) && routine.environment[PippaPiLaunch.memoryVariable] == nil
-          && routine.environment[PippaPiLaunch.egressVariable] == nil && routine.environment["PI_OFFLINE"] == "1"
-          && PippaPiLaunch.tools(.init(web: true, memory: true, online: .init(mcpTools: ["calendar_add"]), readOnly: true)) == routineTools
+          && routine.environment[PippaPiLaunch.readOnlyVariable] == "1"
+          && routine.environment[PippaPiLaunch.egressVariable] == nil && routineForced.environment[PippaPiLaunch.egressVariable] == nil
+          && routine.environment["PI_OFFLINE"] == "1"
+          && routine.arguments.contains("--no-skills") && !routine.arguments.contains("--skill")
+          && PippaPiLaunch.nativeTools(readOnly) == PiNativeReadiness.readOnlyTools
+          && PippaPiLaunch.nativeTools(readOnlyAndOnline) == PiNativeReadiness.readOnlyTools
+          && PiNativeReadiness.readOnlyTools.count == 11
+          && !PiNativeReadiness.readOnlyTools.contains { $0.contains("add") || $0.contains("send") || $0.contains("browse") }
+          && PippaPiLaunch.tools(readOnlyAndOnline) == routineTools
           && PippaPiLaunch.extensions(paths, capabilities: .init(web: true, memory: true, readOnly: true)) == routine.extensions)
     check("Read-only changes the launch key; every existing key stays as it was",
           readOnly.key == "web=1,memory=1,readonly=1" && PippaPiLaunch.Capabilities.all.key == "web=1,memory=1"
@@ -106,6 +116,11 @@ import PiRPC
     // the one switch that gives this Pi the codemode tool (runtime/pippa-tools/pippa-mcp.ts `withCodemode`).
     var scripts = endpoint
     scripts.exposure = PippaPiLaunch.MCPEndpoint.directWithCodemode
+    let routineWithCodemode = PippaPiLaunch.configuration(launcher: launcher, workingDirectory: t, paths: paths, sessionID: nil, language: "en",
+                                                          mcp: (scripts, mcpFile), capabilities: readOnly)
+    check("A read-only routine never receives codemode even when the endpoint requests direct+codemode",
+          routineWithCodemode.environment["PIPPA_MCP_EXPOSURE"] == "direct"
+          && !(value(routineWithCodemode.arguments, after: "--tools") ?? "").contains("codemode"))
     let plain = PippaPiLaunch.configuration(launcher: launcher, workingDirectory: t, paths: paths, sessionID: "s", language: "en", mcp: (endpoint, mcpFile))
     let withScripts = PippaPiLaunch.configuration(launcher: launcher, workingDirectory: t, paths: paths, sessionID: "s", language: "en", mcp: (scripts, mcpFile))
     var expected = plain.environment

@@ -9,6 +9,7 @@ public enum ProactiveRoutineTemplate: String, Codable, Sendable, Equatable, Hash
     case weeklyReview
     case folderWatch
     case calendarRadar
+    case meetingPrep
     case reminderRadar
     case followUp
     case customCheck
@@ -69,10 +70,13 @@ public enum ProactiveTrigger: Codable, Sendable, Equatable, Hashable {
     case folder(path: String, bookmark: Data?)
     /// Appointments in the next `lookaheadHours` (`1...168`) that are new, moved or have a new place.
     case calendarChange(lookaheadHours: Int)
+    /// Confirmed timed appointments starting within `leadMinutes` (`5...120`, default 30).
+    case upcomingMeeting(leadMinutes: Int)
     /// Reminders that are overdue or due today.
     case reminderDue
 
     public static let lookaheadRange = 1...168
+    public static let meetingLeadRange = 5...120
 
     public var normalized: ProactiveTrigger {
         switch self {
@@ -80,6 +84,8 @@ public enum ProactiveTrigger: Codable, Sendable, Equatable, Hashable {
         case .folder: return self
         case .calendarChange(let hours):
             return .calendarChange(lookaheadHours: min(max(hours, Self.lookaheadRange.lowerBound), Self.lookaheadRange.upperBound))
+        case .upcomingMeeting(let minutes):
+            return .upcomingMeeting(leadMinutes: min(max(minutes, Self.meetingLeadRange.lowerBound), Self.meetingLeadRange.upperBound))
         case .reminderDue: return self
         }
     }
@@ -98,6 +104,8 @@ public enum ProactiveTrigger: Codable, Sendable, Equatable, Hashable {
             return de ? "Neue Dateien in \(name)" : "New files in \(name)"
         case .calendarChange:
             return de ? "Wenn sich Termine ändern" : "When appointments change"
+        case .upcomingMeeting(let minutes):
+            return de ? "\(minutes) Min vor Terminen" : "\(minutes) min before appointments"
         case .reminderDue:
             return de ? "Wenn Erinnerungen fällig werden" : "When reminders come due"
         }
@@ -178,7 +186,12 @@ public struct ProactiveRoutine: Identifiable, Codable, Sendable, Equatable {
     public var title: String
     public var instruction: String
     public var template: ProactiveRoutineTemplate
-    public var trigger: ProactiveTrigger
+    public var trigger: ProactiveTrigger {
+        didSet {
+            let normalized = trigger.normalized
+            if trigger != normalized { trigger = normalized }
+        }
+    }
     public var executionMode: RoutineExecutionMode
     public var deliveryMode: RoutineDeliveryMode
     public var enabled: Bool
@@ -243,7 +256,7 @@ public struct ProactiveRoutine: Identifiable, Codable, Sendable, Equatable {
         case .calendarRadar: return .calendarChange
         case .reminderRadar: return .reminderDue
         case .followUp: return .followUp
-        case .eveningPreview, .weeklyReview, .customCheck: return .routine
+        case .eveningPreview, .weeklyReview, .meetingPrep, .customCheck: return .routine
         }
     }
 
@@ -257,6 +270,7 @@ public struct ProactiveRoutine: Identifiable, Codable, Sendable, Equatable {
     public static let eveningPreviewKey = "builtin.evening_preview"
     public static let weeklyReviewKey = "builtin.weekly_review"
     public static let calendarRadarKey = "builtin.calendar_radar"
+    public static let meetingPrepKey = "builtin.meeting_prep"
     public static let reminderRadarKey = "builtin.reminder_radar"
     public static let watchedFolderKey = "builtin.watched_folder"
 
@@ -300,6 +314,11 @@ public struct ProactiveRoutine: Identifiable, Codable, Sendable, Equatable {
                  de ? "Meldet sich nur, wenn in den nächsten zwei Tagen ein Termin dazukommt, sich verschiebt oder den Ort wechselt."
                     : "Speaks up only when an appointment in the next two days is added, moved or changes place.",
                  .calendarRadar, .calendarChange(lookaheadHours: 48), enabled: false, delivery: .deskOnly),
+            make(meetingPrepKey,
+                 de ? "Termin-Vorbereitung" : "Meeting Prep",
+                 de ? "Legt 30 Minuten vor einem Termin Ort, Zeit und passende offene Erinnerungen bereit."
+                    : "Prepares time, place and matching open reminders 30 minutes before an appointment.",
+                 .meetingPrep, .upcomingMeeting(leadMinutes: 30), enabled: false, delivery: .deskOnly),
             make(reminderRadarKey,
                  de ? "Erinnerungsradar" : "Reminder Radar",
                  de ? "Meldet sich, wenn Erinnerungen überfällig oder heute fällig werden."

@@ -50,7 +50,8 @@ export function serverConfig(env: Record<string, string | undefined>) {
 	}
 	if (parsed.protocol !== "http:" || parsed.hostname !== "127.0.0.1" || parsed.pathname !== "/mcp") return undefined;
 	// `direct+codemode` keeps the server `direct`; the codemode tool is the extension's own (`withCodemode`).
-	const exposure = env.PIPPA_MCP_EXPOSURE === "codemode" ? "codemode" : "direct";
+	// A read-only background routine always stays `direct`.
+	const exposure = !isReadOnly(env) && env.PIPPA_MCP_EXPOSURE === "codemode" ? "codemode" : "direct";
 	return {
 		url: parsed.toString(),
 		headers: { Authorization: `Bearer ${token}` },
@@ -66,20 +67,32 @@ export function serverConfig(env: Record<string, string | undefined>) {
 export const CODEMODE_EXPOSURE = "direct+codemode";
 export const CODEMODE_TOOL = "codemode";
 
+/** Whether this Pi runs a read-only background routine (`PIPPA_READ_ONLY=1`). */
+export function isReadOnly(env: Record<string, string | undefined> = process.env): boolean {
+	return env.PIPPA_READ_ONLY === "1";
+}
+
 /** Whether this Pi gets Pi's `codemode` tool next to the declared tools. Only by the app's switch; the person's
- * settings (`defaultTools`, `codemode.mode`) never decide it, and this process alone is affected. */
+ * settings (`defaultTools`, `codemode.mode`) never decide it, and this process alone is affected. Never in read-only mode. */
 export function withCodemode(env: Record<string, string | undefined> = process.env): boolean {
-	return env.PIPPA_MCP_EXPOSURE === CODEMODE_EXPOSURE;
+	return !isReadOnly(env) && env.PIPPA_MCP_EXPOSURE === CODEMODE_EXPOSURE;
 }
 
 export const READINESS_COMMAND = "pippa-native-ready";
+export const READ_ONLY_TOOLS = TOOLS.map((name) => `mcp__${SERVER_NAME}__${name}`);
+export const READ_ONLY_FORBIDDEN_TOOLS = [...WRITE_TOOLS, ...BROWSER_TOOLS, ...SEND_TOOLS].map((name) => `mcp__${SERVER_NAME}__${name}`);
 export const REQUIRED_TOOLS = [...TOOLS, ...WRITE_TOOLS, ...BROWSER_TOOLS, ...SEND_TOOLS].map((name) => `mcp__${SERVER_NAME}__${name}`);
 
-/** The tools this process must have: all of them for the AI on this Mac; for an online AI exactly the app's list
- * (egress.ts), and none of the others may even be registered (the app's server lists only those). `codemode`: whether
- * the codemode tool must be active (`withCodemode`); otherwise it must not be. */
+/** The tools this process must have: all of them for the AI on this Mac; for a read-only routine only the readers
+ * (`PIPPA_READ_ONLY=1`); for an online AI exactly the app's list (egress.ts), and none of the others may even be
+ * registered (the app's server lists only those). `codemode`: whether the codemode tool must be active
+ * (`withCodemode`); otherwise it must not be. */
 export function requiredTools(env: Record<string, string | undefined> = process.env): { required: string[]; forbidden: string[]; codemode: boolean } {
 	const online = egress(env);
+	const readOnlyMode = isReadOnly(env);
+	// Read-only background routines never run against an online route; fail closed if both variables appear.
+	if (readOnlyMode && online) return { required: [], forbidden: REQUIRED_TOOLS, codemode: false };
+	if (readOnlyMode) return { required: READ_ONLY_TOOLS, forbidden: READ_ONLY_FORBIDDEN_TOOLS, codemode: false };
 	const codemode = !online && withCodemode(env);
 	if (!online) return { required: REQUIRED_TOOLS, forbidden: [], codemode };
 	const required = REQUIRED_TOOLS.filter((name) => online.tools.has(name));

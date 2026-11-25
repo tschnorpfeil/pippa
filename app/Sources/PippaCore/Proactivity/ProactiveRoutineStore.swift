@@ -83,12 +83,14 @@ public actor ProactiveRoutineStore {
 
     /// Inserts or replaces a routine by `id`. A `builtInKey` held by a different routine is refused.
     public func upsert(_ routine: ProactiveRoutine) throws {
-        try validate(routine)
-        let json = try Self.encode(routine)
+        var normalizedRoutine = routine
+        normalizedRoutine.trigger = routine.trigger.normalized
+        try validate(normalizedRoutine)
+        let json = try Self.encode(normalizedRoutine)
         try transaction {
-            if let key = routine.builtInKey {
+            if let key = normalizedRoutine.builtInKey {
                 let holders = try db.query("SELECT id FROM routines WHERE built_in_key=?", [.text(key)])
-                if let holder = holders.first?.first?.string, holder != routine.id.uuidString {
+                if let holder = holders.first?.first?.string, holder != normalizedRoutine.id.uuidString {
                     throw ProactiveRoutineStoreError.builtInKeyConflict
                 }
             }
@@ -98,8 +100,8 @@ public actor ProactiveRoutineStore {
                 ON CONFLICT(id) DO UPDATE SET built_in_key=excluded.built_in_key, record_json=excluded.record_json,
                     enabled=excluded.enabled, updated_at=excluded.updated_at
                 """,
-                [.text(routine.id.uuidString), routine.builtInKey.map { .text($0) } ?? .null, .text(json),
-                 .int(routine.enabled ? 1 : 0), .real(routine.updatedAt.timeIntervalSince1970)]
+                [.text(normalizedRoutine.id.uuidString), normalizedRoutine.builtInKey.map { .text($0) } ?? .null, .text(json),
+                 .int(normalizedRoutine.enabled ? 1 : 0), .real(normalizedRoutine.updatedAt.timeIntervalSince1970)]
             )
         }
     }

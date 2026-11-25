@@ -126,7 +126,9 @@ public func runRoutineChecks() async {
     // MARK: Model
 
     check("Routines: schedules and triggers normalize into their ranges") {
-        ProactiveSchedule.weekly(weekdays: [6, 2, 2, 9, 0], hour: 30, minute: -5).normalized == .weekly(weekdays: [2, 6], hour: 23, minute: 0)
+        var mutated = ProactiveRoutine(title: "x", instruction: "", template: .customCheck, trigger: .schedule(.interval(minutes: 2)))
+        mutated.trigger = .upcomingMeeting(leadMinutes: 2)
+        return ProactiveSchedule.weekly(weekdays: [6, 2, 2, 9, 0], hour: 30, minute: -5).normalized == .weekly(weekdays: [2, 6], hour: 23, minute: 0)
             && ProactiveSchedule.weekly(weekdays: [], hour: 9, minute: 0).normalized == .weekly(weekdays: [2], hour: 9, minute: 0)
             && ProactiveSchedule.monthly(day: 40, hour: 9, minute: 0).normalized == .monthly(day: 31, hour: 9, minute: 0)
             && ProactiveSchedule.monthly(day: 0, hour: 9, minute: 0).normalized == .monthly(day: 1, hour: 9, minute: 0)
@@ -134,8 +136,11 @@ public func runRoutineChecks() async {
             && ProactiveSchedule.interval(minutes: 99_999).normalized == .interval(minutes: 1440)
             && ProactiveTrigger.calendarChange(lookaheadHours: 0).normalized == .calendarChange(lookaheadHours: 1)
             && ProactiveTrigger.calendarChange(lookaheadHours: 999).normalized == .calendarChange(lookaheadHours: 168)
+            && ProactiveTrigger.upcomingMeeting(leadMinutes: 1).normalized == .upcomingMeeting(leadMinutes: 5)
+            && ProactiveTrigger.upcomingMeeting(leadMinutes: 999).normalized == .upcomingMeeting(leadMinutes: 120)
             && ProactiveRoutine(title: "x", instruction: "", template: .customCheck, trigger: .schedule(.interval(minutes: 2))).trigger
                 == .schedule(.interval(minutes: 15))
+            && mutated.trigger == .upcomingMeeting(leadMinutes: 5)
     }
 
     check("Routines: trigger summaries read as everyday English and German") {
@@ -153,6 +158,7 @@ public func runRoutineChecks() async {
             (.folder(path: "/Users/me/Downloads", bookmark: nil), "New files in Downloads", "Neue Dateien in Downloads"),
             (.folder(path: "", bookmark: nil), "New files in a folder", "Neue Dateien in einem Ordner"),
             (.calendarChange(lookaheadHours: 48), "When appointments change", "Wenn sich Termine ändern"),
+            (.upcomingMeeting(leadMinutes: 30), "30 min before appointments", "30 Min vor Terminen"),
             (.reminderDue, "When reminders come due", "Wenn Erinnerungen fällig werden"),
         ]
         let wrong = pairs.filter { s($0.0, "en") != $0.1 || s($0.0, "de-DE") != $0.2 }
@@ -165,9 +171,10 @@ public func runRoutineChecks() async {
         let de = ProactiveRoutine.starterPacks(language: "de")
         let keys = en.compactMap(\.builtInKey)
         let folder = ProactiveRoutine.watchedFolder(path: "", language: "de")
-        return keys == ["builtin.morning_brief", "builtin.evening_preview", "builtin.weekly_review", "builtin.calendar_radar", "builtin.reminder_radar"]
-            && en.map(\.id) == de.map(\.id) && Set(en.map(\.id)).count == 5
-            && en.map(\.matterKind) == [.morningBrief, .routine, .routine, .calendarChange, .reminderDue]
+        return keys == ["builtin.morning_brief", "builtin.evening_preview", "builtin.weekly_review",
+                        "builtin.calendar_radar", "builtin.meeting_prep", "builtin.reminder_radar"]
+            && en.map(\.id) == de.map(\.id) && Set(en.map(\.id)).count == 6
+            && en.map(\.matterKind) == [.morningBrief, .routine, .routine, .calendarChange, .routine, .reminderDue]
             && en.filter(\.enabled).map(\.builtInKey) == ["builtin.morning_brief"]
             && en.allSatisfy { $0.executionMode == .deterministic } && de[0].title == "Morgenbrief" && en[0].title == "Morning Brief"
             && folder.builtInKey == "builtin.watched_folder" && folder.matterKind == .watchedFile && folder.title == "Ordner beobachten"
@@ -201,16 +208,27 @@ public func runRoutineChecks() async {
         return c.year == 2026 && c.month == 3 && c.day == 29 && c.hour == 3 && next == at(2026, 3, 30, 2, 30, cal)
     }
 
-    check("Routines: DST fall back 2026-10-25 02:30 Berlin fires only the first 02:30") {
+    check("Routines: DST fall back 2026-10-25 02:30 Berlin fires only the first 02:30, never the repeated hour") {
         let before = at(2026, 10, 24, 12, 0, cal)
         guard let fire = ProactiveScheduleCalculator.nextFireDate(for: .daily(hour: 2, minute: 30), after: before, calendar: cal) else { return false }
         // The first 02:30 is still summer time: 00:30 UTC.
         let firstUTC = Date(timeIntervalSince1970: 1_792_888_200)   // 2026-10-25T00:30:00Z
-        let next = ProactiveScheduleCalculator.nextFireDate(for: .daily(hour: 2, minute: 30), after: fire, calendar: cal)
+        let oneMinLater = firstUTC.addingTimeInterval(60)         // 02:31 CEST (before the repeated 02:30 CET!)
+        let nextAfterFire = ProactiveScheduleCalculator.nextFireDate(for: .daily(hour: 2, minute: 30), after: fire, calendar: cal)
+        let nextAfterMinute = ProactiveScheduleCalculator.nextFireDate(for: .daily(hour: 2, minute: 30), after: oneMinLater, calendar: cal)
         let dueAfterRepeat = ProactiveScheduleCalculator.evaluateDue(
             schedule: .daily(hour: 2, minute: 30), lastSlotKey: ProactiveScheduleCalculator.slotKey(for: fire, calendar: cal), lastRunAt: fire,
             createdAt: before, now: fire.addingTimeInterval(3600 + 60), calendar: cal)
-        return fire == firstUTC && next == at(2026, 10, 26, 2, 30, cal) && dueAfterRepeat == nil
+        // Intervals during the fall-back hour use UTC slot keys so the second 02:30 (01:30 UTC) still fires.
+        let intervalFirst = ProactiveScheduleCalculator.evaluateDue(
+            schedule: .interval(minutes: 60), lastSlotKey: nil, lastRunAt: firstUTC.addingTimeInterval(-3600),
+            createdAt: before, now: firstUTC, calendar: cal)
+        let intervalSecond = ProactiveScheduleCalculator.evaluateDue(
+            schedule: .interval(minutes: 60), lastSlotKey: intervalFirst?.slotKey, lastRunAt: firstUTC,
+            createdAt: before, now: firstUTC.addingTimeInterval(3600), calendar: cal)
+        return fire == firstUTC && nextAfterFire == at(2026, 10, 26, 2, 30, cal) && nextAfterMinute == at(2026, 10, 26, 2, 30, cal)
+            && dueAfterRepeat == nil && intervalFirst?.slotKey == "u-2026-10-25-0030"
+            && intervalSecond?.slotKey == "u-2026-10-25-0130" && intervalSecond?.slotKey != intervalFirst?.slotKey
     }
 
     check("Routines: monthly day 31 clamps to 28 Feb 2026, 29 Feb 2028 and 30 April") {
@@ -236,12 +254,16 @@ public func runRoutineChecks() async {
                                                            now: at(2026, 11, 25, 21, 0, cal), calendar: cal)
         let beforeCreation = ProactiveScheduleCalculator.evaluateDue(schedule: daily, lastSlotKey: nil, lastRunAt: nil,
                                                                      createdAt: at(2026, 11, 25, 9, 0, cal), now: wake, calendar: cal)
+        // Created half a second after 08:00:00 must not fire the 08:00:00 slot.
+        let subSecondAfterSlot = ProactiveScheduleCalculator.evaluateDue(schedule: daily, lastSlotKey: nil, lastRunAt: nil,
+                                                                         createdAt: at(2026, 11, 25, 8, 0, cal).addingTimeInterval(0.5),
+                                                                         now: wake, calendar: cal)
         // Hourly-ish weekly slots within the window still yield a single, newest slot.
         let weekdays = ProactiveScheduleCalculator.evaluateDue(schedule: .weekdays(hour: 8, minute: 0), lastSlotKey: nil, lastRunAt: nil,
                                                                createdAt: created, now: at(2026, 11, 30, 9, 0, cal), calendar: cal)
         return due?.slotKey == "2026-11-25-0800" && due?.slotDate == at(2026, 11, 25, 8, 0, cal)
             && due?.nextFireDate == at(2026, 11, 26, 8, 0, cal) && due?.disableAfterFire == false
-            && again == nil && late == nil && beforeCreation == nil && weekdays?.slotKey == "2026-11-30-0800"
+            && again == nil && late == nil && beforeCreation == nil && subSecondAfterSlot == nil && weekdays?.slotKey == "2026-11-30-0800"
     }
 
     check("Routines: once fires a single time and asks to be switched off; intervals wait for their time") {
@@ -305,10 +327,10 @@ public func runRoutineChecks() async {
         let persisted = try await reopened.routine(id: packs[1].id)
         let remaining = try await reopened.allRoutines().count
         let perms = (try? FileManager.default.attributesOfItem(atPath: base.appendingPathComponent("Proactivity").path)[.posixPermissions] as? Int) ?? 0
-        return all.count == 6 && all.last?.title == "Check invoices daily" && all.last?.lastOutcome == .silent
+        return all.count == 7 && all.last?.title == "Check invoices daily" && all.last?.lastOutcome == .silent
             && byKey?.id == packs[2].id && conflict && invalid && unknown
             && toggled.enabled && persisted?.enabled == true && persisted?.updatedAt == at(2026, 11, 26, 11, 0, cal)
-            && gone == nil && snapshotGone == nil && remaining == 5 && perms & 0o077 == 0
+            && gone == nil && snapshotGone == nil && remaining == 6 && perms & 0o077 == 0
     }
 
     await checkAsync("Routines: one run per routine and slot, history newest first, snapshots persist") {
@@ -403,6 +425,12 @@ public func runRoutineChecks() async {
             expect("Whenever a new file arrives in Downloads, sort it", .folder(path: "", bookmark: nil), template: .folderWatch),
             expect("when my calendar changes let me know", .calendarChange(lookaheadHours: 48), template: .calendarRadar),
             expect("when reminders are due tell me", .reminderDue, template: .reminderRadar),
+            expect("Every Friday at 9 check my overdue reminders", .schedule(.weekly(weekdays: [6], hour: 9, minute: 0)),
+                   template: .customCheck, instruction: "Check my overdue reminders"),
+            expect("Mondays and Thursdays at 9 review invoices", .schedule(.weekly(weekdays: [2, 5], hour: 9, minute: 0)),
+                   instruction: "Review invoices"),
+            expect("Every day look at 120 invoices", .schedule(.daily(hour: 9, minute: 0)), instruction: "Look at 120 invoices"),
+            expect("15 minutes before every meeting prepare notes", .upcomingMeeting(leadMinutes: 15), template: .meetingPrep),
             expect("0 8 * * 1-5 summarize the news", .schedule(.weekdays(hour: 8, minute: 0)), instruction: "Summarize the news"),
         ].allSatisfy { $0 }
     }
@@ -413,12 +441,14 @@ public func runRoutineChecks() async {
                    instruction: "Fasse meine neuen Mails zusammen", "de"),
             expect("jeden Morgen um 8:30 meinen Morgenbrief", .schedule(.daily(hour: 8, minute: 30)), template: .morningBrief, "de"),
             expect("Jeden Abend um 18 Uhr zeig mir die Vorschau auf morgen", .schedule(.daily(hour: 18, minute: 0)), template: .eveningPreview, "de"),
+            expect("Jeden Abend um 6 Uhr Nachrichten prüfen", .schedule(.daily(hour: 18, minute: 0)), instruction: "Nachrichten prüfen", "de"),
+            expect("Heute Abend um 7 Uhr Paket prüfen", .schedule(.once(at: at(2026, 11, 26, 19, 0, cal))), instruction: "Paket prüfen", "de"),
             expect("täglich um 7 prüfe den Ordner Rechnungen", .schedule(.daily(hour: 7, minute: 0)), instruction: "Prüfe den Ordner Rechnungen", "de"),
             expect("werktags um 9 Uhr offene Angebote prüfen", .schedule(.weekdays(hour: 9, minute: 0)), instruction: "Offene Angebote prüfen", "de"),
             expect("unter der Woche um 8 meine Termine zusammenfassen", .schedule(.weekdays(hour: 8, minute: 0)), "de"),
             expect("Jeden Montag und Donnerstag um 9 Uhr Wochenüberblick", .schedule(.weekly(weekdays: [2, 5], hour: 9, minute: 0)),
                    template: .weeklyReview, "de"),
-            expect("montags um 10 die Steuerunterlagen prüfen", .schedule(.weekly(weekdays: [2], hour: 10, minute: 0)), "de"),
+            expect("montags und donnerstags um 10 die Steuerunterlagen prüfen", .schedule(.weekly(weekdays: [2, 5], hour: 10, minute: 0)), "de"),
             expect("Am 1. jeden Monats um 9 erinnere mich an die Miete", .schedule(.monthly(day: 1, hour: 9, minute: 0)),
                    instruction: "Die Miete", "de"),
             expect("jeden Monat am 15. Kontoauszüge ablegen", .schedule(.monthly(day: 15, hour: 9, minute: 0)), "de"),
@@ -430,6 +460,7 @@ public func runRoutineChecks() async {
             expect("in 30 Minuten nachsehen, ob Anna geantwortet hat", .schedule(.once(at: now.addingTimeInterval(1800))), "de"),
             expect("Wenn eine neue Datei in Downloads landet, sortiere sie", .folder(path: "", bookmark: nil), template: .folderWatch, "de"),
             expect("Wenn sich ein Termin ändert, sag mir Bescheid", .calendarChange(lookaheadHours: 48), template: .calendarRadar, "de"),
+            expect("Vor jedem Termin vorbereiten", .upcomingMeeting(leadMinutes: 30), template: .meetingPrep, "de"),
             expect("fällige Erinnerungen melden", .reminderDue, template: .reminderRadar, "de"),
         ].allSatisfy { $0 }
     }
@@ -457,7 +488,8 @@ public func runRoutineChecks() async {
             && p("*/30 * * * *") == .interval(minutes: 30)
             && p("0 */2 * * *") == .interval(minutes: 120)
             && p("15 * * * *") == .interval(minutes: 60)
-        let refused = [p("0 9 1 1 *"), p("0 9 1 * 1"), p("61 8 * * *"), p("0 24 * * *"), p("0 8 * *"), p("a b c d e"), p("0 9 * * 8")]
+        let refused = [p("0 9 1 1 *"), p("0 9 1 * 1"), p("61 8 * * *"), p("0 24 * * *"), p("0 8 * *"), p("a b c d e"), p("0 9 * * 8"),
+                       p("0 9 * * -1"), p("0 9 * * 1-"), p("0 9 * * ,1")]
         return ok && refused.allSatisfy { $0 == nil }
     }
 
@@ -465,11 +497,13 @@ public func runRoutineChecks() async {
         let yes = ["Every morning at 8 summarize my mail", "daily check the news", "weekdays at 9 list my tasks", "remind me every Monday to water the plants",
                    "jeden Morgen um 8 meine Mails", "werktags um 9 die Termine", "täglich den Ordner prüfen", "alle 2 Stunden den Status prüfen",
                    "Whenever a new file lands in Downloads, sort it", "wenn eine neue Datei kommt, sortieren", "Am 1. jeden Monats die Miete",
-                   "0 8 * * 1-5 news", "every 30 minutes check the build", "jeden Montag Wochenüberblick"]
+                   "0 8 * * 1-5 news", "every 30 minutes check the build", "jeden Montag Wochenüberblick", "Before every meeting prep notes"]
         let no = ["What's on my calendar tomorrow?", "Was steht morgen im Kalender?", "What did I do every day last week?",
                   "Wann ist mein nächster Termin?", "Remind me tomorrow at 9 to call mom", "Erinnere mich morgen um 9 an Mama",
                   "Read every file in Downloads", "Summarize this document", "Wie wird das Wetter heute?", "tomorrow at 14:00 call the bank",
-                  "Gibt es jeden Tag ein Meeting?", "Hab ich jeden Montag Training?", "On Monday I have a dentist appointment", ""]
+                  "Gibt es jeden Tag ein Meeting?", "Hab ich jeden Montag Training?", "On Monday I have a dentist appointment",
+                  "Show me my overdue reminders", "Zeig mir meine fälligen Erinnerungen", "Can you check my mail every morning?",
+                  "Kannst du jeden Tag meine Mails lesen?", "Every day at 9", ""]
         let wrongYes = yes.filter { !RoutineNaturalLanguageParser.looksLikeRoutineRequest($0) }
         let wrongNo = no.filter { RoutineNaturalLanguageParser.looksLikeRoutineRequest($0) }
         for w in wrongYes { print("  expected routine: \(w)") }
@@ -568,33 +602,66 @@ public func runRoutineChecks() async {
         return bullets == 5 && result.draft?.summary.contains("… and 3 more") == true && result.draft?.title == "8 appointments changed"
     }
 
-    check("Routines: Reminder Radar reports overdue and due-today reminders once, quiet when none or unchanged") {
+    check("Routines: Reminder Radar fires on new or escalated reminders, stays quiet when one is completed") {
         let now = at(2026, 11, 26, 9, 0, cal)
         let reminders = [ReminderItem(id: "1", title: "Steuer", list: "Privat", due: at(2026, 11, 24, 9, 0, cal)),
                          ReminderItem(id: "2", title: "Blumen gießen", list: "Privat", due: at(2026, 11, 26, 18, 0, cal), dueHasTime: true),
                          ReminderItem(id: "3", title: "Später", list: "Privat", due: at(2026, 11, 28, 9, 0, cal)),
                          ReminderItem(id: "4", title: "Ohne Datum", list: "Privat")]
-        let first = ReminderRadarBuilder.evaluate(reminders: reminders, previousHash: nil, now: now, calendar: cal, language: "de")
-        let same = ReminderRadarBuilder.evaluate(reminders: reminders, previousHash: first.inputHash, now: now.addingTimeInterval(600), calendar: cal, language: "de")
+        let first = ReminderRadarBuilder.evaluate(reminders: reminders, previousSnapshotJSON: nil, now: now, calendar: cal, language: "de")
+        let same = ReminderRadarBuilder.evaluate(reminders: reminders, previousSnapshotJSON: first.nextSnapshotJSON, now: now.addingTimeInterval(600), calendar: cal, language: "de")
+        // Completing "Steuer" leaves a subset of already-seen reminders: must stay quiet!
+        let completedOne = ReminderRadarBuilder.evaluate(reminders: Array(reminders.dropFirst()), previousSnapshotJSON: first.nextSnapshotJSON,
+                                                         now: now.addingTimeInterval(1200), calendar: cal, language: "de")
+        // Next day, "Blumen gießen" transitions from due-today to overdue: must speak up!
+        let escalated = ReminderRadarBuilder.evaluate(reminders: [reminders[1]], previousSnapshotJSON: completedOne.nextSnapshotJSON,
+                                                      now: at(2026, 11, 27, 9, 0, cal), calendar: cal, language: "de")
         let more = ReminderRadarBuilder.evaluate(reminders: reminders + [ReminderItem(id: "5", title: "Anruf", list: "Arbeit", due: at(2026, 11, 26, 11, 0, cal))],
-                                                 previousHash: first.inputHash, now: now, calendar: cal, language: "en")
-        let none = ReminderRadarBuilder.evaluate(reminders: [reminders[2], reminders[3]], previousHash: nil, now: now, calendar: cal)
+                                                 previousSnapshotJSON: first.nextSnapshotJSON, now: now, calendar: cal, language: "en")
+        let corrupt = ReminderRadarBuilder.evaluate(reminders: reminders, previousSnapshotJSON: "not-json", now: now, calendar: cal, language: "en")
+        let none = ReminderRadarBuilder.evaluate(reminders: [reminders[2], reminders[3]], previousSnapshotJSON: nil, now: now, calendar: cal)
         guard let draft = first.draft else { return false }
         return draft.kind == .reminderDue && draft.title == "2 Erinnerungen sind fällig" && draft.summary.contains("1 überfällig\n• Steuer")
             && draft.summary.contains("1 heute fällig\n• Blumen gießen") && !draft.summary.contains("Später") && !draft.summary.contains("Ohne Datum")
             && !draft.preparedPrompt.contains("Steuer") && draft.sourceVersion == first.inputHash
-            && same.draft == nil && more.draft?.title == "3 reminders are due" && more.draft?.summary.contains("2 due today") == true
-            && none.draft == nil
+            && same.draft == nil && completedOne.draft == nil && escalated.draft?.title == "1 Erinnerung ist fällig"
+            && more.draft?.title == "3 reminders are due" && more.draft?.summary.contains("2 due today") == true
+            && corrupt.draft == nil && none.draft == nil
+    }
+
+    check("Routines: Upcoming Meeting Prep prepares once before a confirmed appointment and cross-references reminders") {
+        let now = at(2026, 11, 26, 13, 40, cal)
+        let events = [
+            event("m1", "Steuerberater Termin", at(2026, 11, 26, 14, 0, cal), minutes: 45, location: "Kanzlei Mitte"),
+            event("m2", "Ganztägig", at(2026, 11, 26, 13, 50, cal), minutes: 1440, allDay: true),
+            event("m3", "Abgelehnt", at(2026, 11, 26, 13, 55, cal), declined: true),
+            event("m4", "Später", at(2026, 11, 26, 16, 0, cal)),
+        ]
+        let reminders = [ReminderItem(id: "r1", title: "Belege für Steuerberater einpacken", list: "Privat", due: now)]
+        let first = UpcomingMeetingPrepBuilder.evaluate(events: events, reminders: reminders, previousSnapshotJSON: nil,
+                                                        now: now, leadMinutes: 30, calendar: cal, language: "de")
+        let repeatSame = UpcomingMeetingPrepBuilder.evaluate(events: events, reminders: reminders, previousSnapshotJSON: first.nextSnapshotJSON,
+                                                             now: now.addingTimeInterval(300), leadMinutes: 30, calendar: cal, language: "de")
+        let nextLead = UpcomingMeetingPrepBuilder.nextLeadDate(events: [events[3]], now: now, leadMinutes: 30)
+        guard let draft = first.draft else { return false }
+        return draft.kind == .routine && draft.title == "In 20 Min: Steuerberater Termin"
+            && draft.summary.contains("14:00–14:45 · Kanzlei Mitte")
+            && draft.summary.contains("Offene Erinnerung: Belege für Steuerberater einpacken")
+            && !draft.preparedPrompt.contains("Steuerberater")
+            && repeatSame.draft == nil && nextLead == at(2026, 11, 26, 15, 30, cal)
     }
 
     check("Routines: AI output parser accepts only the strict schema and stays quiet otherwise") {
         let p = RoutineAIOutputParser.parse
         let ready = p("STATUS: READY\nTITLE: 2 new invoices\nSUMMARY: Stadtwerke, 84 €\nTelekom, 39 €")
+        let crlf = p("STATUS: READY\r\nTITLE: Bill due\rSUMMARY: Pay soon")
         let think = p("<think>Let me look…\nSTATUS: READY</think>\nSTATUS: NOTHING_NEW")
+        let unclosedThink = p("<THINK>STATUS: READY\nTITLE: Leak\nSUMMARY: Should stay quiet")
         let bidi = p("status: ready\ntitle: Invoice \u{202E}fdp.exe\u{202C} due\u{0007}\nsummary: Pay \u{2066}today\u{2069}")
         return p("STATUS: NOTHING_NEW") == .nothingNew
             && ready == .prepared(title: "2 new invoices", summary: "Stadtwerke, 84 €\nTelekom, 39 €")
-            && think == .nothingNew
+            && crlf == .prepared(title: "Bill due", summary: "Pay soon")
+            && think == .nothingNew && unclosedThink == .nothingNew
             && bidi == .prepared(title: "Invoice fdp.exe due", summary: "Pay today")
             && p("") == .nothingNew && p("   \n") == .nothingNew
             && p("STATUS: READY\nTITLE: I'm sorry, I can't help with that\nSUMMARY: No.") == .nothingNew
@@ -613,6 +680,7 @@ public func runRoutineChecks() async {
         host.confirmAction = { _ in confirmations.mutate { $0 += 1 }; return true }
         host.confirmBrowser = { _, _, _ in confirmations.mutate { $0 += 1 }; return true }
         let tools = PippaMCPTools(host: host)
+        let initReply = ((await mcpCall(tools, "initialize", ["protocolVersion": "2025-11-25"]))?["result"] as? [String: Any])?["instructions"] as? String ?? ""
         let listed = ((await mcpCall(tools, "tools/list"))?["result"] as? [String: Any])?["tools"] as? [[String: Any]] ?? []
         let names = listed.compactMap { $0["name"] as? String }
         let allRead = !names.isEmpty && names.allSatisfy { PippaActionClasses.of($0) == .read }
@@ -632,6 +700,7 @@ public func runRoutineChecks() async {
             print("  read-only list: \(names) expected \(expectedReaders); read: \(read); confirmations: \(confirmations.value)")
         }
         return allRead && names == expectedReaders && !names.contains("browse") && !names.contains("mail_send")
+            && initReply.contains("read-only") && !initReply.contains("Mail drafts")
             && refusedAll && !read.isError && confirmations.value == 0 && budget < 9_800 && full.count == PippaMCPTools.toolNames.count
     }
 

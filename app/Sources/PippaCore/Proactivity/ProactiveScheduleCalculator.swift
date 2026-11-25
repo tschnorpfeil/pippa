@@ -12,6 +12,14 @@ public enum ProactiveScheduleCalculator {
         return String(format: "%04d-%02d-%02d-%02d%02d", c.year ?? 1970, c.month ?? 1, c.day ?? 1, c.hour ?? 0, c.minute ?? 0)
     }
 
+    /// Monotonic UTC minute key (`u-YYYY-MM-DD-HHmm`) so intervals never collide across a DST fall-back hour.
+    public static func intervalSlotKey(for date: Date) -> String {
+        var utc = Calendar(identifier: .gregorian)
+        utc.timeZone = TimeZone(secondsFromGMT: 0)!
+        let c = utc.dateComponents([.year, .month, .day, .hour, .minute], from: date)
+        return String(format: "u-%04d-%02d-%02d-%02d%02d", c.year ?? 1970, c.month ?? 1, c.day ?? 1, c.hour ?? 0, c.minute ?? 0)
+    }
+
     /// The first fire date strictly after `reference`, or `nil` when the schedule never fires again.
     public static func nextFireDate(for schedule: ProactiveSchedule, after reference: Date,
                                     calendar: Calendar = .autoupdatingCurrent) -> Date? {
@@ -69,7 +77,7 @@ public enum ProactiveScheduleCalculator {
         case .interval(let minutes):
             let interval = TimeInterval(minutes * 60)
             guard (lastRunAt ?? createdAt).addingTimeInterval(interval) <= now else { return nil }
-            let key = slotKey(for: now, calendar: calendar)
+            let key = intervalSlotKey(for: now)
             guard key != lastSlotKey else { return nil }
             return DueEvaluation(slotDate: now, slotKey: key, nextFireDate: now.addingTimeInterval(interval), disableAfterFire: false)
         case let normalized:
@@ -81,7 +89,7 @@ public enum ProactiveScheduleCalculator {
             // Daily cadence at most, so a 12 h window holds a handful of slots; the bound only guards odd windows.
             for _ in 0..<512 {
                 guard let next = nextFireDate(for: normalized, after: cursor, calendar: calendar), next <= now else { break }
-                latest = next
+                if next >= lowerBound { latest = next }
                 cursor = next
             }
             guard let slot = latest else { return nil }
@@ -94,8 +102,24 @@ public enum ProactiveScheduleCalculator {
 
     // MARK: Private
 
+    /// Next fire date matching `components`, skipping the repeated second wall-clock occurrence on a DST fall-back day.
     private static func next(after reference: Date, _ components: DateComponents, _ calendar: Calendar) -> Date? {
-        calendar.nextDate(after: reference, matching: components, matchingPolicy: .nextTime, repeatedTimePolicy: .first)
+        var cursor = reference
+        for _ in 0..<4 {
+            guard let candidate = calendar.nextDate(after: cursor, matching: components, matchingPolicy: .nextTime, repeatedTimePolicy: .first) else {
+                return nil
+            }
+            let dayStart = calendar.startOfDay(for: candidate)
+            let timeOnly = DateComponents(hour: components.hour, minute: components.minute, second: components.second ?? 0)
+            if let firstOnDay = calendar.nextDate(after: dayStart.addingTimeInterval(-1), matching: timeOnly, matchingPolicy: .nextTime, repeatedTimePolicy: .first),
+               firstOnDay < candidate {
+                // `candidate` is the repeated second occurrence after a DST fall-back; advance past it.
+                cursor = candidate
+                continue
+            }
+            return candidate
+        }
+        return nil
     }
 
     /// `day` clamped to each month's last day (31 → 30 April, 28/29 February).

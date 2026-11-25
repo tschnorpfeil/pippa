@@ -271,7 +271,7 @@ public enum CalendarRadarBuilder {
     public enum Change: Sendable, Equatable {
         case added(title: String, start: Date, allDay: Bool)
         case moved(title: String, from: Date, to: Date, allDay: Bool)
-        case placeChanged(title: String, start: Date, location: String?)
+        case placeChanged(title: String, start: Date, allDay: Bool, location: String?)
     }
 
     public static func matterKey(for dayKey: String) -> String { "calendar-radar:\(dayKey)" }
@@ -311,7 +311,7 @@ public enum CalendarRadarBuilder {
                     changes.append(.moved(title: entry.title, from: Date(timeIntervalSince1970: before.start),
                                           to: Date(timeIntervalSince1970: entry.start), allDay: entry.allDay))
                 } else if before.location != entry.location {
-                    changes.append(.placeChanged(title: entry.title, start: Date(timeIntervalSince1970: entry.start), location: entry.location))
+                    changes.append(.placeChanged(title: entry.title, start: Date(timeIntervalSince1970: entry.start), allDay: entry.allDay, location: entry.location))
                 }
             } else if entry.start < previous.windowEnd {
                 // Only appointments the last look would have seen count as new; the rest just moved into the window.
@@ -336,9 +336,9 @@ public enum CalendarRadarBuilder {
             case .moved(let title, let from, let to, let allDay):
                 lines.append((de ? "• Verschoben: " : "• Moved: ") + "\(title.isEmpty ? noTitle : title) → \(when(to, allDay))"
                              + (de ? " (vorher \(when(from, allDay)))" : " (was \(when(from, allDay)))"))
-            case .placeChanged(let title, let start, let location):
+            case .placeChanged(let title, let start, let allDay, let location):
                 let place = location ?? (de ? "kein Ort" : "no place")
-                lines.append((de ? "• Neuer Ort: " : "• New place: ") + "\(title.isEmpty ? noTitle : title), \(when(start, false)): \(place)")
+                lines.append((de ? "• Neuer Ort: " : "• New place: ") + "\(title.isEmpty ? noTitle : title), \(when(start, allDay)): \(place)")
             }
         }
         if changes.count > maxListedChanges { lines.append(RoutineDigestFormat.more(changes.count - maxListedChanges, de: de)) }
@@ -373,29 +373,191 @@ public enum CalendarRadarBuilder {
     }
 }
 
-// MARK: - Reminder Radar
+// MARK: - Upcoming Meeting Prep
 
-public struct ReminderRadarEvaluation: Sendable, Equatable {
+public struct UpcomingMeetingPrepEvaluation: Sendable, Equatable {
+    /// Save this for the next run (`ProactiveRoutineStore.saveSnapshot`) so each meeting prepares once.
+    public let nextSnapshotJSON: String
     public let inputHash: String
     public let draft: ProactiveMatterDraft?
 }
 
-/// Overdue and due-today reminders, compared against the last hash. Quiet when none or unchanged.
+/// Prepares a calm, 0-token brief shortly before a confirmed timed appointment starts, cross-referencing
+/// matching open reminders and open matters. Each meeting occurrence fires at most once.
+public enum UpcomingMeetingPrepBuilder {
+    struct Snapshot: Codable, Equatable {
+        var prepared: [String: Double]   // occurrenceKey -> event end timestamp
+    }
+
+    public static func matterKey(for occurrenceKey: String) -> String { "meeting-prep:\(RoutineText.sha256(occurrenceKey).prefix(16))" }
+
+    /// The earliest future fire date (`event.start - leadMinutes`) for scheduling an exact timer, or `nil`.
+    public static func nextLeadDate(events: [CalendarEvent], now: Date, leadMinutes: Int = 30) -> Date? {
+        let lead = TimeInterval(min(max(leadMinutes, ProactiveTrigger.meetingLeadRange.lowerBound), ProactiveTrigger.meetingLeadRange.upperBound) * 60)
+        return events
+            .filter { !$0.allDay && $0.status == .confirmed && !$0.declined && $0.start > now }
+            .map { max(now, $0.start.addingTimeInterval(-lead)) }
+            .min()
+    }
+
+    public static func evaluate(
+        events: [CalendarEvent],
+        reminders: [ReminderItem] = [],
+        openMatters: [ProactiveMatter] = [],
+        previousSnapshotJSON: String?,
+        now: Date,
+        leadMinutes: Int = 30,
+        calendar: Calendar = .autoupdatingCurrent,
+        language: String? = nil
+    ) -> UpcomingMeetingPrepEvaluation {
+        let lead = min(max(leadMinutes, ProactiveTrigger.meetingLeadRange.lowerBound), ProactiveTrigger.meetingLeadRange.upperBound)
+        let windowEnd = now.addingTimeInterval(TimeInterval(lead * 60))
+
+        var prepared: [String: Double] = [:]
+        if let raw = previousSnapshotJSON, let decoded = try? JSONDecoder().decode(Snapshot.self, from: Data(raw.utf8)) {
+            // Prune meetings that have already ended so the snapshot stays tiny.
+            prepared = decoded.prepared.filter { $0.value > now.timeIntervalSince1970 }
+        }
+
+        let upcoming = events
+            .filter { !$0.allDay && $0.status == .confirmed && !$0.declined && $0.start > now && $0.start <= windowEnd }
+            .sorted { ($0.start, $0.title) < ($1.start, $1.title) }
+
+        guard let next = upcoming.first(where: { prepared[occurrenceKey($0)] == nil }) else {
+            let json = encode(Snapshot(prepared: prepared))
+            return UpcomingMeetingPrepEvaluation(nextSnapshotJSON: json, inputHash: RoutineText.sha256(json), draft: nil)
+        }
+
+        let key = occurrenceKey(next)
+        prepared[key] = next.end.timeIntervalSince1970
+        let json = encode(Snapshot(prepared: prepared))
+
+        let de = RoutineText.resolvedGerman(language, calendar: calendar)
+        let f = RoutineDigestFormat.formatters(de: de, calendar: calendar)
+        let cleanTitle = RoutineText.cleanLine(next.title, fallback: de ? "Termin" : "Appointment", limit: 80)
+        let minutesUntil = max(1, Int(ceil(next.start.timeIntervalSince(now) / 60)))
+        let title = de ? "In \(minutesUntil) Min: \(cleanTitle)" : "In \(minutesUntil) min: \(cleanTitle)"
+
+        var lines: [String] = []
+        let startStr = f.time.string(from: next.start)
+        let endStr = f.time.string(from: next.end)
+        let timeLine = next.end > next.start ? "\(startStr)–\(endStr)" : startStr
+        if let loc = next.location.map({ RoutineText.cleanLine($0, fallback: "", limit: 100) }), !loc.isEmpty {
+            lines.append("• \(timeLine) · \(loc)")
+        } else {
+            lines.append("• \(timeLine)")
+        }
+
+        // Cross-reference open reminders and open matters sharing a meaningful keyword with the appointment title.
+        let keywords = Set(cleanTitle.lowercased()
+            .split(whereSeparator: { !$0.isLetter && !$0.isNumber })
+            .map(String.init)
+            .filter { $0.count >= 4 })
+        if !keywords.isEmpty {
+            let matchingReminders = reminders.filter { item in
+                let hay = item.title.lowercased()
+                return keywords.contains { hay.contains($0) }
+            }
+            for item in matchingReminders.prefix(3) {
+                let name = RoutineText.cleanLine(item.title, fallback: de ? "(Ohne Titel)" : "(No title)")
+                lines.append((de ? "• Offene Erinnerung: " : "• Open reminder: ") + name)
+            }
+            let matchingMatters = RoutineDigestFormat.openMatters(openMatters, excluding: [.morningBrief]).filter { matter in
+                let hay = (matter.title + " " + matter.summary).lowercased()
+                return !matter.matterKey.hasPrefix("meeting-prep:") && keywords.contains { hay.contains($0) }
+            }
+            for matter in matchingMatters.prefix(2) {
+                lines.append((de ? "• Passender Hinweis: " : "• Related item: ") + RoutineText.cleanLine(matter.title, fallback: de ? "Hinweis" : "Item"))
+            }
+        }
+
+        let summary = lines.joined(separator: "\n")
+        let hash = RoutineText.sha256([key, title, summary].joined(separator: "\n---\n"))
+        let draft = ProactiveMatterDraft(
+            kind: .routine,
+            matterKey: matterKey(for: key),
+            sourceRef: "routine:meeting-prep",
+            sourceVersion: hash,
+            title: title,
+            summary: summary,
+            preparedPrompt: de
+                ? "Hilf mir kurz bei der Vorbereitung auf meinen nächsten Termin: relevante Infos aus meinen Notizen, Mails oder Erinnerungen."
+                : "Help me briefly prepare for my next appointment using any relevant notes, mails or reminders."
+        )
+        return UpcomingMeetingPrepEvaluation(nextSnapshotJSON: json, inputHash: hash, draft: draft)
+    }
+
+    private static func occurrenceKey(_ event: CalendarEvent) -> String {
+        "\(event.id)|\(Int64(event.start.timeIntervalSince1970))"
+    }
+
+    private static func encode(_ snapshot: Snapshot) -> String {
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.sortedKeys]
+        return (try? encoder.encode(snapshot)).map { String(decoding: $0, as: UTF8.self) } ?? "{}"
+    }
+}
+
+// MARK: - Reminder Radar
+
+public struct ReminderRadarEvaluation: Sendable, Equatable {
+    /// Save this for the next run (`ProactiveRoutineStore.saveSnapshot`).
+    public let nextSnapshotJSON: String
+    public let inputHash: String
+    public let draft: ProactiveMatterDraft?
+}
+
+/// Overdue and due-today reminders, compared against the last snapshot.
+/// Completing an already-seen reminder stays quiet; only newly due or newly overdue reminders speak up.
 public enum ReminderRadarBuilder {
+    struct Entry: Codable, Equatable {
+        var key: String
+        var overdue: Bool
+    }
+
+    struct Snapshot: Codable, Equatable {
+        var dayKey: String
+        var hash: String
+        var items: [Entry]
+    }
+
     public static func matterKey(for dayKey: String) -> String { "reminder-due:\(dayKey)" }
 
-    public static func evaluate(reminders: [ReminderItem], previousHash: String?, now: Date,
+    public static func evaluate(reminders: [ReminderItem], previousSnapshotJSON: String?, now: Date,
                                 calendar: Calendar = .autoupdatingCurrent, language: String? = nil) -> ReminderRadarEvaluation {
         let todayStart = calendar.startOfDay(for: now)
         let tomorrow = calendar.date(byAdding: .day, value: 1, to: todayStart) ?? todayStart.addingTimeInterval(86_400)
         let due = reminders.filter { ($0.due ?? .distantFuture) < tomorrow }
             .sorted { (($0.due ?? .distantFuture), $0.title) < (($1.due ?? .distantFuture), $1.title) }
+        let dayKey = ProactiveMatterStore.dayKey(for: now, calendar: calendar)
+        let entries = due.map { item in
+            let stableKey = (item.id.flatMap { $0.isEmpty ? nil : "id:\($0)" }) ?? "t:\(item.list)|\(item.title)"
+            return Entry(key: stableKey, overdue: (item.due ?? .distantFuture) < todayStart)
+        }.sorted { ($0.key, $0.overdue ? 1 : 0) < ($1.key, $1.overdue ? 1 : 0) }
+
         let seed = due.map { [$0.id ?? "", $0.title, $0.list, String($0.due?.timeIntervalSince1970 ?? 0)].joined(separator: "\u{1F}") }
             .joined(separator: "\u{1E}")
-        let hash = RoutineText.sha256(ProactiveMatterStore.dayKey(for: now, calendar: calendar) + "\u{1D}" + seed)
-        guard !due.isEmpty, hash != previousHash else {
-            return ReminderRadarEvaluation(inputHash: hash, draft: nil)
+        let hash = RoutineText.sha256(dayKey + "\u{1D}" + seed)
+        let nextJSON = encode(Snapshot(dayKey: dayKey, hash: hash, items: entries))
+
+        guard !due.isEmpty else {
+            return ReminderRadarEvaluation(nextSnapshotJSON: nextJSON, inputHash: hash, draft: nil)
         }
+        if let previousJSON = previousSnapshotJSON {
+            guard let previous = try? JSONDecoder().decode(Snapshot.self, from: Data(previousJSON.utf8)) else {
+                // Corrupt/unreadable snapshot resets quietly as baseline rather than alerting on old items.
+                return ReminderRadarEvaluation(nextSnapshotJSON: nextJSON, inputHash: hash, draft: nil)
+            }
+            let prevByKey = Dictionary(previous.items.map { ($0.key, $0.overdue) }, uniquingKeysWith: { a, b in a || b })
+            let hasNewOrEscalated = entries.contains { entry in
+                guard let wasOverdue = prevByKey[entry.key] else { return true }
+                return entry.overdue && !wasOverdue
+            }
+            guard hasNewOrEscalated else {
+                return ReminderRadarEvaluation(nextSnapshotJSON: nextJSON, inputHash: hash, draft: nil)
+            }
+        }
+
         let de = RoutineText.resolvedGerman(language, calendar: calendar)
         let overdue = due.filter { ($0.due ?? .distantFuture) < todayStart }
         let today = due.filter { ($0.due ?? .distantFuture) >= todayStart }
@@ -413,7 +575,6 @@ public enum ReminderRadarBuilder {
             if today.count > RoutineDigestFormat.maxListed { lines.append(RoutineDigestFormat.more(today.count - RoutineDigestFormat.maxListed, de: de)) }
             sections.append(lines.joined(separator: "\n"))
         }
-        let dayKey = ProactiveMatterStore.dayKey(for: now, calendar: calendar)
         let title = due.count == 1
             ? (de ? "1 Erinnerung ist fällig" : "1 reminder is due")
             : (de ? "\(due.count) Erinnerungen sind fällig" : "\(due.count) reminders are due")
@@ -423,7 +584,13 @@ public enum ReminderRadarBuilder {
             preparedPrompt: de
                 ? "Geh mit mir meine fälligen und überfälligen Erinnerungen durch und hilf mir zu entscheiden, was zuerst dran ist."
                 : "Go through my due and overdue reminders with me and help me decide what to do first.")
-        return ReminderRadarEvaluation(inputHash: hash, draft: draft)
+        return ReminderRadarEvaluation(nextSnapshotJSON: nextJSON, inputHash: hash, draft: draft)
+    }
+
+    private static func encode(_ snapshot: Snapshot) -> String {
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.sortedKeys]
+        return (try? encoder.encode(snapshot)).map { String(decoding: $0, as: UTF8.self) } ?? "{}"
     }
 }
 
@@ -442,10 +609,11 @@ public enum RoutineAIOutputParser {
     static let maxSummary = 2000
 
     public static func parse(_ raw: String) -> Result {
-        var text = String(String.UnicodeScalarView(raw.unicodeScalars.filter { !RoutineText.isUnsafeScalar($0) || $0 == "\n" || $0 == "\t" }))
-        text = text.replacingOccurrences(of: "\r", with: "")
-        // Reasoning blocks from local models are never part of the answer.
-        text = text.replacingOccurrences(of: #"(?s)<think>.*?</think>"#, with: "", options: .regularExpression)
+        // Normalize CRLF and bare CR before stripping unsafe control scalars so CR-only lines don't collapse.
+        var text = raw.replacingOccurrences(of: "\r\n", with: "\n").replacingOccurrences(of: "\r", with: "\n")
+        text = String(String.UnicodeScalarView(text.unicodeScalars.filter { !RoutineText.isUnsafeScalar($0) || $0 == "\n" || $0 == "\t" }))
+        // Reasoning blocks from local models (including uppercase or unclosed `<think>`) are never part of the answer.
+        text = text.replacingOccurrences(of: #"(?si)<think>(?:.*?</think>|.*$)"#, with: "", options: .regularExpression)
         let lines = text.components(separatedBy: "\n").map { $0.trimmingCharacters(in: .whitespaces) }
         guard let statusIndex = lines.firstIndex(where: { $0.uppercased().hasPrefix("STATUS:") }) else { return .nothingNew }
         let status = value(lines[statusIndex]).uppercased().replacingOccurrences(of: " ", with: "_")

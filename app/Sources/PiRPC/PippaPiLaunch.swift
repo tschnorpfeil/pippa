@@ -88,6 +88,8 @@ public enum PippaPiLaunch {
     /// Tells the extensions that an online AI answers (runtime/pippa-tools/egress.ts), and which tools it may call.
     public static let egressVariable = "PIPPA_EGRESS"
     public static let egressToolsVariable = "PIPPA_EGRESS_TOOLS"
+    /// Tells the extensions that a background routine runs (read-only local AI: no shell, writes, ask, codemode or web).
+    public static let readOnlyVariable = "PIPPA_READ_ONLY"
 
     /// Without this environment Pi never starts: no network at startup, no telemetry, no version check at pi.dev.
     public static let offlineEnvironment = ["PI_OFFLINE": "1", "PI_SKIP_VERSION_CHECK": "1", "PI_TELEMETRY": "0"]
@@ -101,7 +103,7 @@ public enum PippaPiLaunch {
                                      mcp: (endpoint: MCPEndpoint, extension: URL)? = nil,
                                      capabilities: Capabilities = .all) -> PiRPCConfiguration {
         var env = launcher.environment.merging(environment) { $1 }
-        env[egressVariable] = nil; env[egressToolsVariable] = nil
+        env[egressVariable] = nil; env[egressToolsVariable] = nil; env[readOnlyVariable] = nil
         // An online AI never gets the notes file, not even if an extension asked for it.
         // A read-only routine never gets it either.
         if let memory = paths.memoryFile, capabilities.online == nil, !capabilities.readOnly { env[memoryVariable] = memory.path } else { env[memoryVariable] = nil }
@@ -109,7 +111,9 @@ public enum PippaPiLaunch {
         // The app's language for the questions the shell (shell.ts) and web access ask before going further.
         env["PIPPA_LANGUAGE"] = language
         env.merge(offlineEnvironment) { $1 }
-        if capabilities.online != nil {
+        if capabilities.readOnly {
+            env[readOnlyVariable] = "1"
+        } else if capabilities.online != nil {
             env[egressVariable] = "online"
             env[egressToolsVariable] = tools(capabilities).joined(separator: ",")
         }
@@ -143,8 +147,8 @@ public enum PippaPiLaunch {
         // web_search) makes Pi exit at startup, and every message failed.
         var args = ["--no-context-files", "--no-extensions", "--no-approve", "--tools", tools(capabilities).joined(separator: ","), "--system-prompt", systemPrompt(language: language)]
         // Only Pippa's bundled skills, not the ones the person installed for Pi in the terminal.
-        // An online AI has no reading tool to open a skill with, so it gets none.
-        if capabilities.online != nil { args += ["--no-skills"] }
+        // An online AI and a read-only routine get no skills.
+        if capabilities.online != nil || capabilities.readOnly { args += ["--no-skills"] }
         else if let skills = paths.skillsDirectory { args += ["--no-skills", "--skill", skills.path] }
         if let sessionID {
             args += ["--session-dir", paths.sessionDirectory.path, "--session-id", piSessionID(sessionID)]
@@ -175,6 +179,7 @@ public enum PippaPiLaunch {
 
     /// The Pippa MCP tools a Pi process with `capabilities` must have, for `PiRPCClient.verifyNativeTools(expected:)`.
     public static func nativeTools(_ capabilities: Capabilities) -> [String] {
+        if capabilities.readOnly { return PiNativeReadiness.readOnlyTools }
         guard let online = capabilities.online else { return PiNativeReadiness.tools }
         return online.mcpTools.map { "mcp__pippa__" + $0 }
     }

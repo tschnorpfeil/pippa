@@ -54,13 +54,17 @@ public enum RoutineNaturalLanguageParser {
     }
 
     /// Strict: `true` only for recurring, scheduled or reactive wording ("every …", "weekdays", "jeden …", "täglich",
-    /// "alle 2 Stunden", "whenever a new file …", "am 1. jeden Monats") or a valid 5-field cron expression. Questions
-    /// ("What's on my calendar tomorrow?") and one-off reminders ("remind me tomorrow at 9") are `false`.
+    /// "alle 2 Stunden", "whenever a new file …", "am 1. jeden Monats") with an actual task or built-in template,
+    /// or a valid 5-field cron expression with a task. Questions ("What's on my calendar tomorrow?") and one-off
+    /// reminders ("remind me tomorrow at 9") are `false`.
     public static func looksLikeRoutineRequest(_ raw: String) -> Bool {
         let text = normalize(raw)
         guard !text.isEmpty, text.count <= 2000 else { return false }
         if isPlainQuestion(text) { return false }
-        return matchTrigger(text, now: Date(), calendar: .autoupdatingCurrent, allowOnce: false) != nil
+        guard let match = matchTrigger(text, now: Date(), calendar: .autoupdatingCurrent, allowOnce: false) else { return false }
+        let task = cleanTask(text, removing: match.spans)
+        let template = match.template ?? detectTemplate(text)
+        return !task.isEmpty || templateDefaults(template, de: false) != nil
     }
 
     /// Common 5-field cron patterns (`min hour dom mon dow`): `0 8 * * *`, `30 8 * * 1-5`, `0 9 * * 1,3,5`,
@@ -119,26 +123,13 @@ public enum RoutineNaturalLanguageParser {
             }
         }
 
-        // 2. Reactive watchers.
-        for (pattern, template) in reactivePatterns {
-            if let range = firstRange(pattern, in: text) {
-                let trigger: ProactiveTrigger
-                switch template {
-                case .folderWatch: trigger = .folder(path: "", bookmark: nil)
-                case .calendarRadar: trigger = .calendarChange(lookaheadHours: 48)
-                default: trigger = .reminderDue
-                }
-                return TriggerMatch(trigger: trigger, template: template, usedDefault: false, spans: [range])
-            }
-        }
-
         let time = extractTime(text)
         func schedule(_ s: ProactiveSchedule, _ span: Range<String.Index>, defaulted: Bool) -> TriggerMatch {
             TriggerMatch(trigger: .schedule(s), template: nil, usedDefault: defaulted, spans: [span] + (time.map { [$0.span] } ?? []))
         }
         let hm = (hour: time?.hour, minute: time?.minute ?? 0)
 
-        // 3. Intervals.
+        // 2. Intervals.
         if let match = firstMatch(#"\b(?:every|alle)\s+(\d{1,4})\s*(hours?|hrs?|h|stunden|stunde|std\.?|minutes?|mins?|minuten|min\.?)(?=\s|$|[.,!;:])"#, in: text),
            let n = Int(match.groups[0] ?? "") {
             let unit = (match.groups[1] ?? "").lowercased()
@@ -152,21 +143,21 @@ public enum RoutineNaturalLanguageParser {
             return TriggerMatch(trigger: .schedule(.interval(minutes: 30)), template: nil, usedDefault: false, spans: [range])
         }
 
-        // 4. Weekdays (before single weekday names: "monday to friday" names Monday too).
+        // 3. Weekdays (before single weekday names: "monday to friday" names Monday too).
         if let range = firstRange(#"\b(?:on weekdays|every weekday|each weekday|weekdays|monday (?:to|through|-) friday|mon-fri|werktags|an werktagen|jeden werktag|unter der woche|montag bis freitag|mo-fr)\b"#, in: text) {
             return schedule(.weekdays(hour: hm.hour ?? 8, minute: hm.minute), range, defaulted: hm.hour == nil)
         }
 
-        // 5. Named weekdays with a recurrence cue.
+        // 4. Named weekdays with a recurrence cue.
         if let weekly = weeklyMatch(text) {
             return schedule(.weekly(weekdays: weekly.days, hour: hm.hour ?? 9, minute: hm.minute), weekly.span, defaulted: hm.hour == nil)
         }
 
-        // 6. Monthly.
+        // 5. Monthly.
         if let range = firstRange(#"\b(?:monthly|every month|each month|monatlich|jeden monat)\b"#, in: text) {
             var day = 1
             var spans = [range]
-            if let dayMatch = firstMatch(#"\b(?:on the\s+(\d{1,2})(?:st|nd|rd|th)?|am\s+(\d{1,2})\.)"#, in: text),
+            if let dayMatch = firstMatch(#"\b(?:on the\s+(\d{1,2})(?:st|nd|rd|th)?(?!\d)|am\s+(\d{1,2})\.(?!\d))"#, in: text),
                let value = Int(dayMatch.groups[0] ?? dayMatch.groups[1] ?? ""), (1...31).contains(value) {
                 day = value
                 spans.append(dayMatch.range)
@@ -185,25 +176,42 @@ public enum RoutineNaturalLanguageParser {
            let day = Int(match.groups[0] ?? ""), (1...31).contains(day) {
             return schedule(.monthly(day: day, hour: hm.hour ?? 9, minute: hm.minute), match.range, defaulted: hm.hour == nil)
         }
-        // 7. Every morning / evening.
+        // 6. Every morning / evening.
         if let range = firstRange(#"\b(?:every morning|each morning|every single morning|jeden morgen|jeden früh|immer morgens)\b"#, in: text) {
             return schedule(.daily(hour: hm.hour ?? 8, minute: hm.minute), range, defaulted: hm.hour == nil)
         }
         if let range = firstRange(#"\b(?:every evening|each evening|every night|each night|jeden abend|immer abends)\b"#, in: text) {
             var hour = hm.hour ?? 18
-            // "every evening at 6" means 18:00.
+            // "every evening at 6" / "jeden Abend um 6 Uhr" means 18:00.
             if let explicit = time, explicit.meridiem == nil, explicit.hour < 12, explicit.hour >= 1 { hour = explicit.hour + 12 }
             return schedule(.daily(hour: hour, minute: hm.minute), range, defaulted: hm.hour == nil)
         }
 
-        // 8. Daily.
+        // 7. Daily.
         if let range = firstRange(#"\b(?:every day|each day|every single day|daily|jeden tag|täglich|alle tage)\b"#, in: text) {
             return schedule(.daily(hour: hm.hour ?? 9, minute: hm.minute), range, defaulted: hm.hour == nil)
         }
 
-        // 9. Weekly without a named day: Mondays.
+        // 8. Weekly without a named day: Mondays.
         if let range = firstRange(#"\b(?:weekly|every week|each week|wöchentlich|jede woche)\b"#, in: text) {
             return schedule(.weekly(weekdays: [2], hour: hm.hour ?? 9, minute: hm.minute), range, defaulted: hm.hour == nil)
+        }
+
+        // 9. Reactive watchers (checked after explicit schedules so e.g. "Every Friday at 9 check overdue reminders" keeps Friday 09:00).
+        if let prepMatch = firstMatch(#"\b(?:(\d{1,3})\s*(?:minutes?|mins?|minuten|min\.?)\s+)?(?:before\s+(?:every|each|my|an?)\s+(?:meeting|meetings|appointment|appointments)|vor\s+(?:jedem|meinen|einem)\s+(?:termin|terminen|meeting|meetings))\b"#, in: text) {
+            let lead = prepMatch.groups[0].flatMap(Int.init) ?? 30
+            return TriggerMatch(trigger: .upcomingMeeting(leadMinutes: lead), template: .meetingPrep, usedDefault: prepMatch.groups[0] == nil, spans: [prepMatch.range])
+        }
+        for (pattern, template) in reactivePatterns {
+            if let range = firstRange(pattern, in: text) {
+                let trigger: ProactiveTrigger
+                switch template {
+                case .folderWatch: trigger = .folder(path: "", bookmark: nil)
+                case .calendarRadar: trigger = .calendarChange(lookaheadHours: 48)
+                default: trigger = .reminderDue
+                }
+                return TriggerMatch(trigger: trigger, template: template, usedDefault: false, spans: [range])
+            }
         }
 
         // 10. One-offs: only when parsing an explicit routine, never for `looksLikeRoutineRequest`.
@@ -236,14 +244,16 @@ public enum RoutineNaturalLanguageParser {
         (#"\b(?:when(?:ever)?|if|each time|every time)\s+(?:a\s+|an\s+|any\s+)?new\s+(?:file|files|document|documents|download|downloads|pdf|pdfs)\b"#, .folderWatch),
         (#"\b(?:wenn|sobald|immer wenn|jedes mal wenn)\s+(?:eine\s+|ein\s+)?(?:neue|neuer|neues)\s+(?:datei|dateien|dokument|dokumente|download|downloads|pdf|pdfs)\b"#, .folderWatch),
         (#"\b(?:for|on)\s+(?:every|each)\s+new\s+(?:file|document|download)\b"#, .folderWatch),
-        (#"\b(?:when(?:ever)?|if)\s+(?:my\s+|a\s+|an\s+|the\s+)?(?:calendar|appointments?|meetings?|events?)\s+(?:changes?|change|moves?|is moved|are moved|gets? moved|is added|are added|gets? added)\b"#, .calendarRadar),
-        (#"\b(?:calendar changes|calendar change)\b"#, .calendarRadar),
+        (#"\b(?:when(?:ever)?|if|watch(?:\s+for)?|alert(?:\s+me)?\s+(?:on|about|when)|notify(?:\s+me)?\s+(?:on|about|when))\s+(?:my\s+|a\s+|an\s+|the\s+)?(?:calendar|appointments?|meetings?|events?)\s+(?:changes?|change|moves?|is moved|are moved|gets? moved|is added|are added|gets? added)\b"#, .calendarRadar),
+        (#"\b(?:watch(?:\s+for)?|alert(?:\s+me)?\s+(?:on|about)|notify(?:\s+me)?\s+(?:on|about)|track)\s+(?:my\s+)?calendar changes?\b"#, .calendarRadar),
         (#"\b(?:wenn|sobald|immer wenn)\s+sich\s+(?:ein\s+|mein\s+|meine\s+|der\s+|die\s+)?(?:termin|termine|kalender|meeting|meetings)\s+(?:ändert|ändern|verschiebt|verschieben)\b"#, .calendarRadar),
-        (#"\b(?:kalenderänderungen|terminänderungen|geänderte termine)\b"#, .calendarRadar),
-        (#"\b(?:when(?:ever)?|if)\s+(?:a\s+|my\s+|any\s+)?reminders?\s+(?:is\s+|are\s+|comes?\s+|becomes?\s+|gets?\s+)?(?:due|overdue)\b"#, .reminderRadar),
-        (#"\b(?:due reminders|overdue reminders)\b"#, .reminderRadar),
+        (#"\b(?:melde|beobachte|achte auf|warne(?:\s+mich)?\s+bei)\s+(?:kalenderänderungen|terminänderungen|geänderte[n]?\s+termine[n]?)\b"#, .calendarRadar),
+        (#"\b(?:kalenderänderungen|terminänderungen)\s+(?:melden|überwachen)\b"#, .calendarRadar),
+        (#"\b(?:when(?:ever)?|if|alert(?:\s+me)?\s+when|notify(?:\s+me)?\s+when)\s+(?:a\s+|my\s+|any\s+)?reminders?\s+(?:is\s+|are\s+|comes?\s+|becomes?\s+|gets?\s+)?(?:due|overdue)\b"#, .reminderRadar),
+        (#"\b(?:watch(?:\s+for)?|alert(?:\s+me)?\s+(?:on|about)|notify(?:\s+me)?\s+(?:on|about))\s+(?:due|overdue)\s+reminders?\b"#, .reminderRadar),
         (#"\b(?:wenn|sobald|immer wenn)\s+(?:eine\s+|meine\s+)?erinnerung(?:en)?\s+(?:fällig|überfällig)\b"#, .reminderRadar),
-        (#"\b(?:fällige|überfällige)\s+erinnerung(?:en)?\b"#, .reminderRadar),
+        (#"\b(?:fällige|überfällige)\s+erinnerung(?:en)?\s+(?:melden|überwachen)\b"#, .reminderRadar),
+        (#"\b(?:melde|beobachte|achte auf)\s+(?:fällige|überfällige)\s+erinnerung(?:en)?\b"#, .reminderRadar),
     ]
 
     private static let weekdayWords: [(String, Int)] = [
@@ -251,12 +261,12 @@ public enum RoutineNaturalLanguageParser {
         ("sonntag", 1), ("montag", 2), ("dienstag", 3), ("mittwoch", 4), ("donnerstag", 5), ("freitag", 6), ("samstag", 7), ("sonnabend", 7),
     ]
 
-    /// "every Monday and Thursday", "on Mondays", "jeden Montag und Donnerstag", "montags".
+    /// "every Monday and Thursday", "on Mondays", "Mondays and Thursdays", "jeden Montag und Donnerstag", "montags und donnerstags".
     private static func weeklyMatch(_ text: String) -> (days: [Int], span: Range<String.Index>)? {
         let names = weekdayWords.map(\.0).joined(separator: "|")
         // A recurrence cue followed by a list of day names.
         let listed = #"\b(?:every|each|on|jeden|jede|immer)\s+((?:(?:\#(names))s?(?:\s*(?:,|and|und|&)\s*)?)+)"#
-        let adverb = #"\b(?:\#(names))s\b"#
+        let adverb = #"\b((?:(?:\#(names))s(?:\s*(?:,|and|und|&)\s*)?)+)\b"#
         var days: [Int] = []
         var span: Range<String.Index>?
         if let match = firstMatch(listed, in: text), let list = match.groups[0] {
@@ -268,10 +278,9 @@ public enum RoutineNaturalLanguageParser {
                 span = match.range
             }
         }
-        if days.isEmpty, let range = firstRange(adverb, in: text) {
-            let word = String(text[range]).lowercased()
-            days = weekdayWords.filter { word.hasPrefix($0.0) }.map(\.1)
-            span = range
+        if days.isEmpty, let match = firstMatch(adverb, in: text), let list = match.groups[0] {
+            days = weekdayWords.filter { list.range(of: "\\b\($0.0)s\\b", options: [.regularExpression, .caseInsensitive]) != nil }.map(\.1)
+            span = match.range
         }
         guard !days.isEmpty, let span else { return nil }
         return (ProactiveSchedule.normalizedWeekdays(days), span)
@@ -289,9 +298,9 @@ public enum RoutineNaturalLanguageParser {
     /// "at 8", "at 8:30", "at 8am", "at 6 pm", "um 8", "um 8:30 uhr", "um 18.30", "8am", "18 uhr".
     private static func extractTime(_ text: String) -> TimeMatch? {
         let patterns = [
-            #"\b(?:at|um|gegen)\s+(\d{1,2})(?:[:.](\d{2}))?\s*(am|pm|a\.m\.|p\.m\.|uhr|h\b)?"#,
-            #"\b(\d{1,2})(?:[:.](\d{2}))?\s*(am|pm|a\.m\.|p\.m\.|uhr)\b"#,
-            #"\b(\d{1,2})[:](\d{2})\b()"#,
+            #"\b(?:at|um|gegen)\s+(\d{1,2})(?:[:.](\d{2}))?(?!\d)(?:\s*(am|pm|a\.m\.|p\.m\.|uhr|h\b))?"#,
+            #"\b(\d{1,2})(?:[:.](\d{2}))?(?!\d)\s*(am|pm|a\.m\.|p\.m\.|uhr)\b"#,
+            #"\b(\d{1,2})[:](\d{2})(?!\d)\b()"#,
         ]
         for pattern in patterns {
             guard let match = firstMatch(pattern, in: text), var hour = Int(match.groups[0] ?? "") else { continue }
@@ -305,7 +314,7 @@ public enum RoutineNaturalLanguageParser {
                 if suffix == "am", hour == 12 { hour = 0 }
             }
             guard (0...23).contains(hour), (0...59).contains(minute) else { continue }
-            return TimeMatch(hour: hour, minute: minute, meridiem: meridiem ?? (suffix.isEmpty ? nil : suffix), span: match.range)
+            return TimeMatch(hour: hour, minute: minute, meridiem: meridiem, span: match.range)
         }
         return nil
     }
@@ -343,6 +352,10 @@ public enum RoutineNaturalLanguageParser {
             return (de ? "Terminradar" : "Calendar Radar",
                     de ? "Melden, wenn ein Termin dazukommt, sich verschiebt oder den Ort wechselt."
                        : "Speak up when an appointment is added, moved or changes place.")
+        case .meetingPrep:
+            return (de ? "Termin-Vorbereitung" : "Meeting Prep",
+                    de ? "Ort, Zeit und passende offene Erinnerungen vor dem Termin bereitlegen."
+                       : "Prepare time, place and matching open reminders before an appointment.")
         case .reminderRadar:
             return (de ? "Erinnerungsradar" : "Reminder Radar",
                     de ? "Melden, wenn Erinnerungen überfällig oder heute fällig werden." : "Speak up when reminders become overdue or due today.")
@@ -353,8 +366,19 @@ public enum RoutineNaturalLanguageParser {
 
     /// The task without the trigger and time phrases and without polite or reminder lead-ins.
     private static func cleanTask(_ text: String, removing spans: [Range<String.Index>]) -> String {
+        let sorted = spans
+            .filter { $0.lowerBound < $0.upperBound && $0.upperBound <= text.endIndex }
+            .sorted { $0.lowerBound < $1.lowerBound }
+        var merged: [Range<String.Index>] = []
+        for span in sorted {
+            if let last = merged.last, span.lowerBound <= last.upperBound {
+                merged[merged.count - 1] = last.lowerBound..<max(last.upperBound, span.upperBound)
+            } else {
+                merged.append(span)
+            }
+        }
         var task = text
-        for span in spans.sorted(by: { $0.lowerBound > $1.lowerBound }) where span.upperBound <= task.endIndex {
+        for span in merged.reversed() {
             task.replaceSubrange(span, with: " ")
         }
         task = task.split(whereSeparator: \.isWhitespace).joined(separator: " ")
@@ -364,7 +388,7 @@ public enum RoutineNaturalLanguageParser {
             #"^(?:remind me to|remind me|erinnere mich daran,?\s*(?:dass\s+)?|erinnere mich an|erinnere mich|send me|give me|schick mir|gib mir|zeig mir|show me)\s+"#,
             #"^(?:and|then|und|dann|,|:|-)\s*"#,
             #"^(?:arrives|arrive|appears|lands|comes in|kommt|ankommt|landet|erscheint)[,:]?\s*"#,
-            #"^(?:in my downloads|in downloads|in meinen downloads|in downloads)[,:]?\s*"#,
+            #"^(?:in my downloads|in meinen downloads|in downloads)[,:]?\s*"#,
             #"^(?:to)\s+"#,
         ]
         for _ in 0..<4 {
@@ -409,15 +433,15 @@ public enum RoutineNaturalLanguageParser {
 
     /// Interrogatives about the person's data, not a request to set something up.
     private static func isPlainQuestion(_ text: String) -> Bool {
-        let questionStart = #"^(?:what|what's|whats|when|where|which|who|why|how|is|are|do|does|did|have|has|was|wann|wo|wer|wie|warum|welche|welcher|welches|ist|sind|habe|hab|hast|gibt|steht|stehen)\b"#
+        let questionStart = #"^(?:what|what's|whats|when|where|which|who|why|how|is|are|do|does|did|have|has|can|could|would|should|was|wann|wo|wer|wie|warum|welche|welcher|welches|ist|sind|habe|hab|hast|gibt|steht|stehen|kannst|könntest|würdest|soll|sollte)\b"#
         return text.hasSuffix("?") && text.range(of: questionStart, options: [.regularExpression, .caseInsensitive]) != nil
     }
 
     /// Cron day-of-week field ("1-5", "1,3,5", "0", "7", "mon-fri" not supported) as `Calendar` weekdays.
     private static func cronWeekdays(_ field: String) -> [Int]? {
         var days: Set<Int> = []
-        for part in field.split(separator: ",") {
-            let bounds = part.split(separator: "-").map { Int($0) }
+        for part in field.split(separator: ",", omittingEmptySubsequences: false) {
+            let bounds = part.split(separator: "-", omittingEmptySubsequences: false).map { Int($0) }
             if bounds.count == 1, let d = bounds[0], (0...7).contains(d) {
                 days.insert(d % 7 + 1)
             } else if bounds.count == 2, let a = bounds[0], let b = bounds[1], (0...7).contains(a), (0...7).contains(b), a <= b {

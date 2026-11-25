@@ -43,7 +43,7 @@ import { listFolder } from "./list-folder.ts";
 import { readTool } from "./document.ts";
 import { askTool } from "./ask.ts";
 import { registerLocalContextGuard } from "./context-guard.mjs";
-import { blockReason, egress, hideWorkingFolder, onlyAllowedTools } from "./egress.ts";
+import { blockReason, egress, hideWorkingFolder, onlyAllowedTools, readOnly, readOnlyBlockReason } from "./egress.ts";
 import { assertMovableEntry, checkedFile, fileToolPath, guarded, isProtected, PROTECTED_REASON, protection, toolCallReason } from "./protected.ts";
 import { refuseRedirects } from "./transport.ts";
 
@@ -62,7 +62,17 @@ export default function (pi: ExtensionAPI) {
 	// A provider request is never replayed to another address (transport.ts).
 	refuseRedirects();
 	// An online AI answers: only `ask`, every other call blocked, no working-folder path (egress.ts).
+	// If both online egress and read-only mode are set, fail closed and register no tools.
 	const online = egress();
+	const readOnlyGuard = readOnly();
+	if (online && readOnlyGuard) {
+		const closed = { tools: new Set<string>() };
+		pi.on("before_provider_request", (event: any) => onlyAllowedTools(closed, event?.payload));
+		pi.on("before_agent_start", (event: any) => hideWorkingFolder(event));
+		pi.on("tool_call", (event: any) => ({ block: true, reason: readOnlyBlockReason(closed, String(event?.toolName ?? ""))! }));
+		pi.on("user_bash", () => ({ result: { output: "Direct shell execution is disabled in Pippa.", exitCode: 1, cancelled: false, truncated: false } }));
+		return;
+	}
 	if (online) {
 		pi.on("before_provider_request", (event: any) => onlyAllowedTools(online, event?.payload));
 		pi.on("before_agent_start", (event: any) => hideWorkingFolder(event));
@@ -78,70 +88,83 @@ export default function (pi: ExtensionAPI) {
 	// Results are capped below (budget.ts), so the guard leaves them alone.
 	registerLocalContextGuard(pi, { capToolResults: false });
 	// First of all tool_call handlers (this extension loads first; Pi stops at the first block): nothing that names a
-	// protected place runs, and no copy of it is kept (pippa-assist.ts).
+	// protected place runs, and no copy of it is kept (pippa-assist.ts). In read-only mode, any non-read tool is also blocked.
 	const where = protection();
 	const outside = (path: string) => !isProtected(path, where);
 	pi.on("tool_call", (event: any, ctx: any) => {
-		const reason = toolCallReason(String(event?.toolName ?? ""), event?.input, ctx?.cwd ?? process.cwd(), where);
+		const name = String(event?.toolName ?? "");
+		if (readOnlyGuard) {
+			const denied = readOnlyBlockReason(readOnlyGuard, name);
+			if (denied) return { block: true, reason: denied };
+		}
+		const reason = toolCallReason(name, event?.input, ctx?.cwd ?? process.cwd(), where);
 		return reason ? { block: true, reason } : undefined;
 	});
-	pi.on("before_provider_request", (event: any) => shortenParameters(event?.payload));
+	pi.on("before_provider_request", (event: any) => {
+		const filtered = readOnlyGuard ? (onlyAllowedTools(readOnlyGuard, event?.payload) ?? event?.payload) : event?.payload;
+		const shortened = shortenParameters(filtered);
+		return shortened ?? (filtered !== event?.payload ? filtered : undefined);
+	});
 	const backups = backupDirectory();
-	const shell = shellTool(createBashToolDefinition, { keep: backups ? (file) => backUp(file, backups) : undefined, protection: where });
-	pi.on("agent_start", () => shell.resetAnswer());
-	pi.registerTool(shell.definition(process.cwd()));
+	if (!readOnlyGuard) {
+		const shell = shellTool(createBashToolDefinition, { keep: backups ? (file) => backUp(file, backups) : undefined, protection: where });
+		pi.on("agent_start", () => shell.resetAnswer());
+		pi.registerTool(shell.definition(process.cwd()));
+	}
 	const checked = (path: string) => checkedFile(path, where);
 	pi.registerTool(readTool((cwd) => createReadToolDefinition(cwd, { operations: {
 		access: (path) => access(checked(path), constants.R_OK),
 		readFile: (path) => readFile(checked(path)),
 		detectImageMimeType: (path) => detectSupportedImageMimeTypeFromFile(checked(path)),
 	} }), undefined, { path: (raw, cwd) => checked(fileToolPath(raw, cwd)) }).definition(process.cwd()));
-	for (const create of [createWriteToolDefinition, createEditToolDefinition]) {
-		const cwd = process.cwd();
-		pi.registerTool({
-			...create(cwd),
-			async execute(id: string, params: any, signal: AbortSignal | undefined, onUpdate: any, ctx: any) {
-				let file: string | undefined;
-				let before: { file: string; copy?: string; created?: boolean } | undefined;
-				let attempted = false;
-				// Pi resolves the input before passing it to these operations. Freeze the canonical target for
-				// edit's read and write and revalidate it after awaiting the backup.
-				const target = (path: string) => {
-					const current = checked(path);
-					if (file !== undefined && current !== file) throw new Error(PROTECTED_REASON);
-					return file = current;
-				};
-				const tool = create(cwd, { operations: {
-					access: (path: string) => access(target(path), constants.R_OK | constants.W_OK),
-					readFile: (path: string) => readFile(target(path)),
-					mkdir: async (dir: string) => { await mkdir(checked(dir), { recursive: true }); },
-					writeFile: async (path: string, content: string) => {
-						const resolved = target(path);
-						if (backups) {
-							const created = !(await exists(resolved));
-							try {
-								const copy = await backUp(resolved, backups, undefined, () => { target(path); });
-								before = { file: resolved, copy, created };
-							} catch {
-								throw new Error("Not changed: Pippa could not keep a copy of the old version first.");
+	if (!readOnlyGuard) {
+		for (const create of [createWriteToolDefinition, createEditToolDefinition]) {
+			const cwd = process.cwd();
+			pi.registerTool({
+				...create(cwd),
+				async execute(id: string, params: any, signal: AbortSignal | undefined, onUpdate: any, ctx: any) {
+					let file: string | undefined;
+					let before: { file: string; copy?: string; created?: boolean } | undefined;
+					let attempted = false;
+					// Pi resolves the input before passing it to these operations. Freeze the canonical target for
+					// edit's read and write and revalidate it after awaiting the backup.
+					const target = (path: string) => {
+						const current = checked(path);
+						if (file !== undefined && current !== file) throw new Error(PROTECTED_REASON);
+						return file = current;
+					};
+					const tool = create(cwd, { operations: {
+						access: (path: string) => access(target(path), constants.R_OK | constants.W_OK),
+						readFile: (path: string) => readFile(target(path)),
+						mkdir: async (dir: string) => { await mkdir(checked(dir), { recursive: true }); },
+						writeFile: async (path: string, content: string) => {
+							const resolved = target(path);
+							if (backups) {
+								const created = !(await exists(resolved));
+								try {
+									const copy = await backUp(resolved, backups, undefined, () => { target(path); });
+									before = { file: resolved, copy, created };
+								} catch {
+									throw new Error("Not changed: Pippa could not keep a copy of the old version first.");
+								}
 							}
-						}
-						signal?.throwIfAborted();
-						const destination = target(path);
-						attempted = true;
-						await writeFile(destination, content, "utf8");
-					},
-				} });
-				try {
-					const result = await tool.execute(id, params, signal, onUpdate, ctx);
-					return before ? { ...result, details: { ...result.details, pippaBefore: before } } : result;
-				} catch (error) {
-					if (!attempted || !before?.copy) throw error;
-					return { content: [{ type: "text", text: String(error instanceof Error ? error.message : error) }],
-						details: { pippaBefore: before }, isError: true };
-				}
-			},
-		});
+							signal?.throwIfAborted();
+							const destination = target(path);
+							attempted = true;
+							await writeFile(destination, content, "utf8");
+						},
+					} });
+					try {
+						const result = await tool.execute(id, params, signal, onUpdate, ctx);
+						return before ? { ...result, details: { ...result.details, pippaBefore: before } } : result;
+					} catch (error) {
+						if (!attempted || !before?.copy) throw error;
+						return { content: [{ type: "text", text: String(error instanceof Error ? error.message : error) }],
+							details: { pippaBefore: before }, isError: true };
+					}
+				},
+			});
+		}
 	}
 	// Pi's direct RPC shell (`!command`) bypasses the tool wrapper and its sandbox; Pippa never offers it.
 	pi.on("user_bash", () => ({ result: { output: "Direct shell execution is disabled in Pippa.", exitCode: 1, cancelled: false, truncated: false } }));
@@ -154,7 +177,7 @@ export default function (pi: ExtensionAPI) {
 		return content ? { content } : undefined;
 	});
 
-	pi.registerTool(askTool());
+	if (!readOnlyGuard) pi.registerTool(askTool());
 
 	pi.registerTool({
 		name: "search_files",
@@ -195,7 +218,7 @@ export default function (pi: ExtensionAPI) {
 		},
 	});
 
-	pi.registerTool(guarded({
+	if (!readOnlyGuard) pi.registerTool(guarded({
 		name: "move_files",
 		label: "Dateien einsortieren",
 		description: "Rename or move one item: from, to (new name, folder, or \"trash\" for the Trash). Sort many: folder, groups (subfolders, created if missing). Never overwrites.",

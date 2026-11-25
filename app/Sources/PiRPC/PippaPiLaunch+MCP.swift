@@ -27,13 +27,15 @@ extension PippaPiLaunch {
     /// `directWithCodemode` the tool list also names `codemode`: Pi registers no tool that `--tools` leaves out.
     public static func addMCP(_ endpoint: MCPEndpoint, extension file: URL, to configuration: inout PiRPCConfiguration) {
         if !configuration.extensions.contains(file) { configuration.extensions.append(file) }
-        if endpoint.exposure == MCPEndpoint.directWithCodemode, let flag = configuration.arguments.firstIndex(of: "--tools"),
+        let readOnly = configuration.environment[readOnlyVariable] == "1"
+        let exposure = readOnly ? "direct" : endpoint.exposure
+        if !readOnly, exposure == MCPEndpoint.directWithCodemode, let flag = configuration.arguments.firstIndex(of: "--tools"),
            flag + 1 < configuration.arguments.count {
             let list = configuration.arguments[flag + 1].split(separator: ",").map(String.init)
             if !list.contains("codemode") { configuration.arguments[flag + 1] = (list + ["codemode"]).joined(separator: ",") }
         }
         configuration.environment["PIPPA_MCP_URL"] = endpoint.url.absoluteString
         configuration.environment["PIPPA_MCP_TOKEN"] = endpoint.token
-        configuration.environment["PIPPA_MCP_EXPOSURE"] = endpoint.exposure
+        configuration.environment["PIPPA_MCP_EXPOSURE"] = exposure
     }
 }
