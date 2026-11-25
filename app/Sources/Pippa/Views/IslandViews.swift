@@ -623,7 +623,7 @@ struct IslandNudgeCard: View {
         switch matter.kind {
         case .morningBrief: T("Morning brief", table: "Island")
         case .watchedFile: T("New file", table: "Island")
-        case .followUp: T("Follow-up", table: "Island")
+        case .followUp, .routine, .calendarChange, .reminderDue: T("Follow-up", table: "Island")
         }
     }
 }

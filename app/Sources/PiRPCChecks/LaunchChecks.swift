@@ -72,6 +72,26 @@ import PiRPC
           ["read", "bash", "write", "search_files", "list_folder", "move_files", "ask", "mcp__pippa__*"] == PippaPiLaunch.tools(none)
           && none.key != PippaPiLaunch.Capabilities.all.key && PippaPiLaunch.Capabilities(web: false).key != PippaPiLaunch.Capabilities(memory: false).key)
 
+    // A background routine's Pi (package 1): reading only, whatever else is switched on.
+    let readOnly = PippaPiLaunch.Capabilities(readOnly: true)
+    let routine = PippaPiLaunch.configuration(launcher: launcher, workingDirectory: t, paths: paths, sessionID: "routine", language: "de",
+                                              capabilities: readOnly)
+    let routineTools = value(routine.arguments, after: "--tools")?.split(separator: ",").map(String.init) ?? []
+    let forbidden = ["bash", "write", "move_files", "remember", "ask", "web_search", "fetch_content"]
+    check("A read-only routine gets only reading tools, Pippa's tools and helps, no memory, web, shell or questions",
+          routineTools == ["read", "search_files", "list_folder", "mcp__pippa__*"] && PippaPiLaunch.tools(readOnly) == routineTools
+          && !routineTools.contains { forbidden.contains($0) }
+          && routine.extensions == ["pippa-tools.ts", "pippa-assist.ts"].map { t.appendingPathComponent($0) }
+          && !routine.extensions.contains(web) && routine.environment[PippaPiLaunch.memoryVariable] == nil
+          && routine.environment[PippaPiLaunch.egressVariable] == nil && routine.environment["PI_OFFLINE"] == "1"
+          && PippaPiLaunch.tools(.init(web: true, memory: true, online: .init(mcpTools: ["calendar_add"]), readOnly: true)) == routineTools
+          && PippaPiLaunch.extensions(paths, capabilities: .init(web: true, memory: true, readOnly: true)) == routine.extensions)
+    check("Read-only changes the launch key; every existing key stays as it was",
+          readOnly.key == "web=1,memory=1,readonly=1" && PippaPiLaunch.Capabilities.all.key == "web=1,memory=1"
+          && PippaPiLaunch.Capabilities(web: false, memory: false).key == "web=0,memory=0"
+          && PippaPiLaunch.Capabilities(online: .init(mcpTools: ["calendar_add"])).key == "web=1,memory=0,online=calendar_add"
+          && PippaPiLaunch.Capabilities() == PippaPiLaunch.Capabilities(readOnly: false))
+
     let endpoint = PippaPiLaunch.MCPEndpoint(url: URL(string: "http://127.0.0.1:4711/mcp")!, token: String(repeating: "a", count: 64))
     let mcpFile = t.appendingPathComponent("pippa-mcp.ts")
     var withMCP = PippaPiLaunch.configuration(launcher: launcher, workingDirectory: t, paths: paths, sessionID: nil, language: "en",

@@ -1,7 +1,7 @@
 import Darwin
 import Foundation
 
-public enum DurableJobKind: String, Codable, Sendable { case filePreparation, morningBriefing }
+public enum DurableJobKind: String, Codable, Sendable { case filePreparation, morningBriefing, routineRun }
 public enum DurableJobState: String, Codable, Sendable {
     case queued, running, needsAttention, completed, failed, cancelled
 }
