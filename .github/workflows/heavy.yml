@@ -50,7 +50,7 @@ jobs:
       - name: Terminal autostart in the pinned Pi (runtime/pippa-local-server)
         run: |
           export PIPPA_PI_CLI="$PWD/.build/pi-release/node_modules/@earendil-works/pi-coding-agent/dist/bundle/cli.js"
-          node --experimental-strip-types --test runtime/pippa-local-server/test/autostart.test.mjs runtime/pippa-local-server/test/real-pi.test.mjs 2>&1 | tail -n 200
+          node --experimental-strip-types --test runtime/pippa-local-server/test/autostart.test.mjs runtime/pippa-local-server/test/context-guard.test.mjs runtime/pippa-local-server/test/real-pi.test.mjs 2>&1 | tail -n 200
         shell: bash -o pipefail {0}
       - name: Web access tests (runtime/pippa-web, pi-web-access in the real Pi)
         working-directory: runtime/pippa-web

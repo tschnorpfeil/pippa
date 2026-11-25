@@ -41,15 +41,22 @@ public enum PiReasoningStyle: String, Codable, Sendable, Equatable {
 }
 
 public enum PiModelTuning {
-    /// Room for the answer: the answer limit Pippa gives every local model (`PiProviderModel.maxTokens`).
+    /// Pi 1.6.0's fixed margin (`CONTEXT_SAFETY_TOKENS` in pi-ai `simple-options.js`): `clampMaxTokensToContext`
+    /// caps `max_tokens` at `contextWindow - input - 4096`, so the answer only gets room beyond this margin.
+    public static let piContextSafetyTokens = 4096
+
+    /// Room for the answer at the compaction threshold: the answer limit (at most a quarter of the window) plus Pi's
+    /// safety margin, capped at seven sixteenths of the window so the threshold stays usable
+    /// (4k/4096: 1792, 16k/4096: 7168, 32k/4096: 8192, 32k/16384: 12288).
     public static func reserveTokens(contextWindow: Int, maxTokens: Int) -> Int {
-        min(maxTokens, contextWindow / 4)
+        min(contextWindow * 7 / 16, min(maxTokens, contextWindow / 4) + piContextSafetyTokens)
     }
 
-    /// What stays verbatim after compacting: about three eighths of the window (16k: 6144, 32k: 12288).
-    /// Not measured yet; the point is a threshold above 0.
+    /// What stays verbatim after compacting: an eighth of the window (16k: 2048, 32k: 4096). Pi estimates kept
+    /// tokens as `chars / 4`, which undercounts code and HTML by about 1.86x; a larger budget lets one big tool call
+    /// pin the cut point and leaves `prepareCompaction` nothing to summarize.
     public static func keepRecentTokens(contextWindow: Int) -> Int {
-        contextWindow * 3 / 8
+        contextWindow / 8
     }
 
     /// Key in Pi's per-model settings.

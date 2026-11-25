@@ -347,6 +347,21 @@ func runSetupChecks() async {
         // A level the person chose stays; Pippa's default (the catalog's "medium") only goes where none is set.
         let kept = PiModelTuning.merge(into: ["modelThinkingLevels": ["pippa-local/\(ornith)": "off"]],
                                        models: [models[0]])["modelThinkingLevels"] as? [String: String]
+        // Pi 1.6.0 keeps 4096 tokens off max_tokens; at the compaction threshold the answer must still get >= 3072,
+        // and reserve + kept tail must fit the window so compaction can cut somewhere.
+        let safety = PiModelTuning.piContextSafetyTokens
+        let tuned = safety == 4096
+            && PiModelTuning.reserveTokens(contextWindow: 4096, maxTokens: 4096) == 1792
+            && PiModelTuning.keepRecentTokens(contextWindow: 4096) == 512
+            && PiModelTuning.reserveTokens(contextWindow: 16384, maxTokens: 4096) == 7168
+            && PiModelTuning.keepRecentTokens(contextWindow: 16384) == 2048
+            && PiModelTuning.reserveTokens(contextWindow: 32768, maxTokens: 4096) == 8192
+            && PiModelTuning.reserveTokens(contextWindow: 32768, maxTokens: 16384) == 12288
+            && PiModelTuning.keepRecentTokens(contextWindow: 32768) == 4096
+            && [(16384, 4096), (32768, 4096), (32768, 16384)].allSatisfy { ctx, maxTokens in
+                let reserve = PiModelTuning.reserveTokens(contextWindow: ctx, maxTokens: maxTokens)
+                return min(maxTokens, reserve - safety) >= 3072 && reserve + PiModelTuning.keepRecentTokens(contextWindow: ctx) < ctx
+            }
         // Provider entry: Ornith thinks via enable_thinking; Inkling via reasoning_effort + vision input.
         let entry = PiInstaller.providerEntry(models: models, port: 1, keyFile: PiInstaller.keyFile(support: r.support))
         let listed = entry["models"] as? [[String: Any]] ?? []
@@ -356,9 +371,10 @@ func runSetupChecks() async {
         let inkMap = inkEntry?["thinkingLevelMap"] as? [String: Any]
         let inkCompat = inkEntry?["compat"] as? [String: Any]
         return wrote && doc?["theme"] as? String == "dark"
-            && small?["reserveTokens"] == 4096 && small?["keepRecentTokens"] == 6144
-            && ink?["reserveTokens"] == 8192 && ink?["keepRecentTokens"] == 12288
-            && large?["reserveTokens"] == 4096 && large?["keepRecentTokens"] == 12288
+            && small?["reserveTokens"] == 7168 && small?["keepRecentTokens"] == 2048
+            && ink?["reserveTokens"] == 12288 && ink?["keepRecentTokens"] == 4096
+            && large?["reserveTokens"] == 8192 && large?["keepRecentTokens"] == 4096
+            && tuned
             && levels?["pippa-local/\(ornith)"] == "medium" && levels?["pippa-local/\(inkling)"] == "medium"
             && levels?["pippa-local/other-model"] == "high"
             && kept?["pippa-local/\(ornith)"] == "off"

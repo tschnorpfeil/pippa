@@ -10,8 +10,11 @@
 //
 // Hooks: `before_provider_request` (awaited by Pi before the HTTP request, also for each tool turn) and
 // `session_before_compact` (compaction calls the model without that hook). Other providers: nothing happens.
+// context-guard.mjs keeps the local model's context small (stubbed write/edit texts, capped tool results, a rescue
+// from length-truncation deadlocks); its hooks are `agent_settled`, `turn_end`, `tool_result` and `agent_before_settle`.
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { configPath, loadConfig, lockPath, ServerError } from "./common.mjs";
+import { registerLocalContextGuard } from "./context-guard.mjs";
 import { ensureServer } from "./ensure.mjs";
 
 const PROVIDER = "pippa-local";
@@ -78,6 +81,8 @@ export default function pippaLocalServer(pi: ExtensionAPI) {
 		await ensure(ctx as Ctx);
 		return undefined;
 	});
+	// Pippa's budget.ts is not loaded in Terminal Pi, so the guard caps tool results here too.
+	registerLocalContextGuard(pi, { capToolResults: true });
 }
 
 function portOf(baseUrl: string | undefined): number | undefined {

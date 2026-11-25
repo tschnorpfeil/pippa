@@ -3,8 +3,8 @@
   "pippa-tools": [
     "pippa-tools.ts", "pippa-assist.ts", "pippa-memory.ts", "pippa-mcp.ts", "files.ts", "facts.mjs",
     "list-folder.ts", "document.ts", "digest.ts", "shell.ts", "budget.ts", "search.mjs", "ask.ts", "egress.ts",
-    "protected.ts", "transport.ts"
+    "protected.ts", "transport.ts", "context-guard.mjs"
   ],
-  "pippa-local-server": ["index.ts", "common.mjs", "ensure.mjs", "supervisor.mjs"],
+  "pippa-local-server": ["index.ts", "common.mjs", "ensure.mjs", "supervisor.mjs", "context-guard.mjs"],
   "pippa-web": ["index.ts", "package-lock.json", "node_modules/pi-web-access/dist/index.js"]
 }
