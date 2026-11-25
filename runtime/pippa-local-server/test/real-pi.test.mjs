@@ -26,7 +26,9 @@ test("real Pi: plain `pi -p` with pippa-local starts the server, answers, and le
 	const extensionDir = join(home, ".pi/agent/extensions/pippa-local-server");
 	mkdirSync(support, { recursive: true });
 	mkdirSync(extensionDir, { recursive: true });
-	for (const f of ["index.ts", "common.mjs", "ensure.mjs", "supervisor.mjs"]) copyFileSync(join(here, "..", f), join(extensionDir, f));
+	// The files the app installs (app/Packaging/runtime-files.json), so a new import cannot be missed here.
+	const shipped = JSON.parse(readFileSync(join(here, "../../../app/Packaging/runtime-files.json"), "utf8"))["pippa-local-server"];
+	for (const f of shipped) copyFileSync(join(here, "..", f), join(extensionDir, f));
 
 	const port = await new Promise((resolve) => {
 		const s = createServer().listen(0, "127.0.0.1", () => { const { port } = s.address(); s.close(() => resolve(port)); });

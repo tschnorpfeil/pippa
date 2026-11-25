@@ -42,6 +42,7 @@ import { shellTool } from "./shell.ts";
 import { listFolder } from "./list-folder.ts";
 import { readTool } from "./document.ts";
 import { askTool } from "./ask.ts";
+import { registerLocalContextGuard } from "./context-guard.mjs";
 import { blockReason, egress, hideWorkingFolder, onlyAllowedTools } from "./egress.ts";
 import { assertMovableEntry, checkedFile, fileToolPath, guarded, isProtected, PROTECTED_REASON, protection, toolCallReason } from "./protected.ts";
 import { refuseRedirects } from "./transport.ts";
@@ -73,6 +74,9 @@ export default function (pi: ExtensionAPI) {
 		pi.registerTool(askTool());
 		return;
 	}
+	// The local model only (it checks the provider itself): stubbed write/edit texts and the length-deadlock rescue.
+	// Results are capped below (budget.ts), so the guard leaves them alone.
+	registerLocalContextGuard(pi, { capToolResults: false });
 	// First of all tool_call handlers (this extension loads first; Pi stops at the first block): nothing that names a
 	// protected place runs, and no copy of it is kept (pippa-assist.ts).
 	const where = protection();
