@@ -9,6 +9,7 @@ struct Composer: View {
     @ObservedObject var chat: ChatModel
     @ObservedObject var setup: SetupModel
     @FocusState private var focused: Bool
+    @Environment(\.openRoutineEditor) private var openRoutineEditor
     /// The Photos picker for one picture to share (its text, read on this Mac).
     private let pickingPhoto = State(initialValue: false)
     private let pickedPhoto = State<PhotosPickerItem?>(initialValue: nil)
@@ -96,6 +97,7 @@ struct Composer: View {
                 addButton
                 Spacer(minLength: Space.m)
                 if let recipient = chat.handoffDestination { askOnlineButton(recipient) }
+                if offersRoutine { routineButton.transition(.opacity) }
                 AIBadge(setup: setup)
                 if canSteer { steerButton.transition(.scale.combined(with: .opacity)) }
                 sendButton
@@ -105,6 +107,24 @@ struct Composer: View {
         .glass(Radius.chat, lifted: focused)
         .animation(Theme.quick, value: focused)
         .animation(Theme.quick, value: canSteer)
+        .animation(Theme.quick, value: offersRoutine)
+    }
+
+    /// The words ask for something regular ("every weekday at 8 …"): offer to keep it as a routine instead.
+    private var offersRoutine: Bool {
+        !chat.isAnswering && RoutineNaturalLanguageParser.looksLikeRoutineRequest(chat.draft)
+    }
+
+    private var routineButton: some View {
+        Button { openRoutineEditor(.fromText(chat.draft)) } label: {
+            Label(T("Save as routine…", table: "App"), systemImage: "repeat")
+                .font(Typo.caption.weight(.medium)).foregroundStyle(Theme.ink2)
+                .padding(.horizontal, 9).frame(height: 24)
+                .background(Theme.rowHover, in: Capsule())
+                .contentShape(Capsule())
+        }
+        .buttonStyle(.plain)
+        .help(T("Let Pippa do this regularly and place the result in For You", table: "App"))
     }
 
     private var plus: some View {

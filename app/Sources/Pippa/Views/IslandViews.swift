@@ -572,14 +572,25 @@ struct IslandNudgeCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: IslandStyle.buttonGap) {
             VStack(alignment: .leading, spacing: 3) {
-                Text(kindLabel)
-                    .font(IslandStyle.caption.weight(.semibold))
-                    .foregroundStyle(IslandStyle.accent)
+                HStack(spacing: IslandStyle.buttonGap) {
+                    Text(kindLabel)
+                        .font(IslandStyle.caption.weight(.semibold))
+                        .foregroundStyle(IslandStyle.accent)
+                    Spacer(minLength: 0)
+                    if othersWaiting {
+                        Button(T("%lld ready in For You", table: "Island", coordinator.openMatters.count)) { coordinator.openDesk() }
+                            .buttonStyle(.plain)
+                            .font(IslandStyle.caption.weight(.medium))
+                            .foregroundStyle(IslandStyle.white(IslandStyle.secondary))
+                            .lineLimit(1).fixedSize()
+                            .help(T("Show everything Pippa prepared", table: "Island"))
+                    }
+                }
                 Text(matter.title)
                     .font(IslandStyle.title).foregroundStyle(IslandStyle.white(IslandStyle.primary))
                     .lineLimit(2).fixedSize(horizontal: false, vertical: true)
             }
-            .accessibilityElement(children: .combine)
+            .accessibilityElement(children: .contain)
             if !matter.summary.isEmpty {
                 // A long brief scrolls inside the island instead of growing it.
                 ScrollView {
@@ -619,11 +630,17 @@ struct IslandNudgeCard: View {
             .opacity(0.75)
     }
 
+    /// More than this one is waiting: the way to all of them.
+    private var othersWaiting: Bool { coordinator.openMatters.count > 1 }
+
     private var kindLabel: String {
         switch matter.kind {
         case .morningBrief: T("Morning brief", table: "Island")
         case .watchedFile: T("New file", table: "Island")
-        case .followUp, .routine, .calendarChange, .reminderDue: T("Follow-up", table: "Island")
+        case .followUp: T("Follow-up", table: "Island")
+        case .routine: T("Routine", table: "Island")
+        case .calendarChange: T("Calendar change", table: "Island")
+        case .reminderDue: T("Due reminder", table: "Island")
         }
     }
 }

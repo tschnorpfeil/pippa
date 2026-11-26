@@ -18,6 +18,8 @@ enum Snapshots {
     static func run(into folder: URL) async -> Int32 {
         try? FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
         Theme.drawsGlass = live
+        // Calm notices off in every scene but the ones made for them: nothing from this Mac's routines shows.
+        ProactivityCoordinator.shared.configureForSnapshot(enabled: false)
         if ProcessInfo.processInfo.environment["PIPPA_SNAPSHOT_PROVIDERS_ONLY"] == "1" {
             let setup = SetupModel.shared
             setup.showForSnapshot(.ready(adoptedFrom: nil))
@@ -173,6 +175,36 @@ enum Snapshots {
             chat.attachments = []
             Approvals.shared.cancelAll()
         }
+        // For You: first visit (calm notices off, starter routines), then a day with prepared items and routines.
+        let proactivity = ProactivityCoordinator.shared
+        chat.showSample([], current: nil, answering: false)
+        let deskScenes: [(String, Bool, () -> Void)] = [
+            ("for-you-empty", true, {
+                proactivity.configureForSnapshot(enabled: false, suggestedTemplates: [.morningBrief, .meetingPrep, .calendarRadar, .reminderRadar, .folderWatch])
+            }),
+            ("for-you-active", true, {
+                proactivity.configureForSnapshot(enabled: true, openMatters: sampleMatters(fixtures), snoozedMatters: sampleSnoozed(),
+                                                 routines: sampleRoutines(), recentRuns: sampleRoutineRuns(), deliveredTodayCount: 1,
+                                                 nextScheduledSummary: "Evening Preview · Today 18:00", suggestedTemplates: [.reminderRadar])
+            }),
+            ("welcome-proactive", false, {
+                proactivity.configureForSnapshot(enabled: true, openMatters: sampleMatters(fixtures))
+            }),
+        ]
+        for (name, forYou, prepare) in deskScenes {
+            prepare()
+            for dark in [false, true] {
+                await render(ChatView(chat: chat, setup: setup, inspector: false, showingForYou: forYou),
+                             size: NSSize(width: 1240, height: forYou ? 1180 : 760), dark: dark,
+                             to: folder.appendingPathComponent("\(name)-\(dark ? "dark" : "light").png"))
+            }
+        }
+        for dark in [false, true] {
+            await render(RoutineEditorSheet(seed: .fromText("Every weekday at 8:30 check my unread invoices"), onDismiss: {}),
+                         size: NSSize(width: 540, height: 640), dark: dark, chrome: false,
+                         to: folder.appendingPathComponent("routine-editor-\(dark ? "dark" : "light").png"))
+        }
+        proactivity.configureForSnapshot(enabled: false)
         // The sites beside "Looked up on 6 sites": stacked at rest, fanned out under the pointer.
         let hosts = ["wetter.com", "dwd.de", "kvb.koeln", "stadt-koeln.de"]
         for dark in [false, true] {
@@ -421,6 +453,68 @@ enum Snapshots {
             ChatMessage(role: .user, text: "Erinnere mich an die Steuerunterlagen."), undone,
             ChatMessage(role: .user, text: "Sortier die Rechnungen aus dem Posteingang in „Rechnungen“."), sorted,
         ])]
+    }
+
+    /// Prepared items for For You and the welcome: made-up appointments and a sample invoice.
+    private static func sampleMatters(_ fixtures: URL) -> [ProactiveMatter] {
+        let now = Date()
+        return [
+            ProactiveMatter(kind: .morningBrief, matterKey: "snapshot-brief", sourceRef: "snapshot", sourceVersion: "1",
+                            title: "Your Thursday: 3 appointments",
+                            summary: "09:30 Dentist, Hauptstraße 12\n13:00 Lunch with Anna\n17:30 Parents’ evening at school\nDue today: renew the parking permit.",
+                            preparedPrompt: "Help me plan my Thursday.",
+                            createdAt: now.addingTimeInterval(-2 * 3600), updatedAt: now.addingTimeInterval(-2 * 3600)),
+            ProactiveMatter(kind: .watchedFile, matterKey: "snapshot-file", sourceRef: "snapshot", sourceVersion: "1",
+                            title: "New in Downloads: Rechnung-Oktober.pdf",
+                            summary: "An invoice from Stadtwerke for October, 84.20 €, due on 30 November.",
+                            preparedPrompt: "Look at this invoice and tell me what I need to do.",
+                            preparedFiles: [fixtures.appendingPathComponent("Rechnung-Oktober.pdf").path],
+                            createdAt: now.addingTimeInterval(-40 * 60), updatedAt: now.addingTimeInterval(-40 * 60)),
+            ProactiveMatter(kind: .calendarChange, matterKey: "snapshot-calendar", sourceRef: "snapshot", sourceVersion: "1",
+                            title: "Team meeting moved to 15:00",
+                            summary: "Friday’s team meeting now starts an hour later and moved to room 2.",
+                            preparedPrompt: "What changes for my Friday?",
+                            createdAt: now.addingTimeInterval(-10 * 60), updatedAt: now.addingTimeInterval(-10 * 60)),
+        ]
+    }
+
+    private static func sampleSnoozed() -> [ProactiveMatter] {
+        let tomorrow = Calendar.current.date(bySettingHour: 8, minute: 0, second: 0,
+                                             of: Date().addingTimeInterval(86_400)) ?? Date().addingTimeInterval(86_400)
+        return [ProactiveMatter(kind: .reminderDue, matterKey: "snapshot-reminder", sourceRef: "snapshot", sourceVersion: "1",
+                                title: "Call the landlord about the heating", summary: "", preparedPrompt: "Help me call the landlord.",
+                                state: .snoozed, snoozedUntil: tomorrow)]
+    }
+
+    private static func sampleRoutines() -> [ProactiveRoutine] {
+        let now = Date()
+        var packs = ProactiveRoutine.starterPacks(language: RoutineUI.language, now: now)
+        packs = packs.filter { [.morningBrief, .eveningPreview, .calendarRadar].contains($0.template) }
+        for index in packs.indices {
+            packs[index].enabled = true
+            switch packs[index].template {
+            case .morningBrief:
+                packs[index].lastOutcome = .prepared; packs[index].lastRunAt = now.addingTimeInterval(-2 * 3600)
+            case .calendarRadar:
+                packs[index].lastOutcome = .silent; packs[index].lastRunAt = now.addingTimeInterval(-25 * 60)
+            default:
+                packs[index].nextRunAt = Calendar.current.date(bySettingHour: 18, minute: 0, second: 0, of: now)
+            }
+        }
+        let invoices = ProactiveRoutine(title: "Unread invoices", instruction: "Check my unread mail for invoices.", template: .customCheck,
+                                        trigger: .schedule(.weekdays(hour: 8, minute: 30)), executionMode: .localAIReadOnly,
+                                        deliveryMode: .deskOnly, lastRunAt: now.addingTimeInterval(-26 * 3600), lastOutcome: .silent, createdAt: now)
+        let folder = ProactiveRoutine.watchedFolder(path: "/Users/sample/Downloads", language: RoutineUI.language, enabled: false, now: now)
+        return packs + [invoices, folder]
+    }
+
+    private static func sampleRoutineRuns() -> [RoutineRunRecord] {
+        let now = Date()
+        func run(_ title: String, _ outcome: RoutineRunOutcome, _ ago: TimeInterval) -> RoutineRunRecord {
+            RoutineRunRecord(routineID: UUID(), routineTitle: title, slotKey: "snapshot", outcome: outcome,
+                             startedAt: now.addingTimeInterval(-ago - 2), finishedAt: now.addingTimeInterval(-ago))
+        }
+        return [run("Calendar Radar", .silent, 25 * 60), run("Morning Brief", .prepared, 2 * 3600), run("Unread invoices", .silent, 26 * 3600)]
     }
 
     private static func sampleLongDocument() -> [Conversation] {

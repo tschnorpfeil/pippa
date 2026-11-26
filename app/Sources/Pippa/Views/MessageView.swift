@@ -28,6 +28,8 @@ struct MessageView: View, Equatable {
 
     enum ErrorFallback: Equatable { case useLocal, openSettings }
     private let hoverState = State(initialValue: false)
+    /// Not part of `==`: the action is the same for every message.
+    @Environment(\.openRoutineEditor) private var openRoutineEditor
     /// Cards, receipts and an error already there when the answer came on screen; ones that come later arrive.
     private let seenState = State<(cards: Int, receipts: Int, error: Bool)?>(initialValue: nil)
 
@@ -60,7 +62,12 @@ struct MessageView: View, Equatable {
             HStack(alignment: .bottom, spacing: Space.xs) {
                 // Quiet actions beside the bubble, shown on hover: no space taken below it.
                 HStack(spacing: Space.xxs) {
-                    if !message.text.isEmpty { CopyButton(text: message.text, compact: true) }
+                    if !message.text.isEmpty {
+                        CopyButton(text: message.text, compact: true)
+                        GhostButton(title: T("Make routine", table: "App"), symbol: "repeat", compact: true) {
+                            openRoutineEditor(.fromText(message.text))
+                        }
+                    }
                     GhostButton(title: T("Edit", table: "App"), symbol: "pencil", compact: true) { chat.edit(message) }
                         .disabled(answering)
                 }

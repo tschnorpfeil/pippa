@@ -18,3 +18,10 @@
 "Morning brief" = "Morning brief";
 "New file" = "New file";
 "Follow-up" = "Follow-up";
+
+/* Proactive Pippa: For You, routines. */
+"%lld ready in For You" = "%lld ready in For You";
+"Calendar change" = "Calendar change";
+"Due reminder" = "Due reminder";
+"Routine" = "Routine";
+"Show everything Pippa prepared" = "Show everything Pippa prepared";

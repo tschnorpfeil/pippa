@@ -12,6 +12,8 @@ enum IslandSnapshots {
         NSApp.setActivationPolicy(.accessory)
         let chat = ChatModel.shared, setup = SetupModel.shared, island = Island.shared, approvals = Approvals.shared
         setup.showForSnapshot(.ready(adoptedFrom: nil))
+        // Calm notices off: no nudge from this Mac in any scene but the one made for it.
+        ProactivityCoordinator.shared.configureForSnapshot(enabled: false)
         // A presenter without a window: the sample question waits in `Approvals` instead of an alert.
         approvals.present("snapshot")
         func status(questions: Int = 0, flash: ChatModel.Unseen? = nil) -> IslandStatus {
@@ -139,6 +141,14 @@ enum IslandSnapshots {
                 island.showForSnapshot(status(), dropMode: true)
             }),
             ("drop-tray-over", true, { DropFeedback.island.targeted = true }),
+            // A calm notice waiting in the island, with a second one in For You.
+            ("proactive-nudge", true, {
+                DropFeedback.island.targeted = false
+                chat.showSample([], current: nil, answering: false)
+                let nudge = sampleNudge
+                ProactivityCoordinator.shared.configureForSnapshot(enabled: true, activeNudge: nudge, openMatters: [nudge, sampleSecond])
+                island.showForSnapshot(status())
+            }),
         ]
         for (name, open, prepare) in scenes {
             await prepare()
@@ -153,10 +163,26 @@ enum IslandSnapshots {
             }
         }
         DropFeedback.island.targeted = false
+        ProactivityCoordinator.shared.configureForSnapshot(enabled: false)
         island.showForSnapshot(status())
         approvals.dismiss("snapshot")
         print(folder.path)
         return 0
+    }
+
+    /// The morning brief as the island shows it (made-up appointments).
+    private static var sampleNudge: ProactiveMatter {
+        ProactiveMatter(kind: .morningBrief, matterKey: "snapshot-brief", sourceRef: "snapshot", sourceVersion: "1",
+                        title: "Your Thursday: 3 appointments",
+                        summary: "09:30 Dentist, Hauptstraße 12\n13:00 Lunch with Anna\n17:30 Parents’ evening\nDue today: renew the parking permit.",
+                        preparedPrompt: "Help me plan my Thursday.",
+                        createdAt: Date().addingTimeInterval(-20 * 60), updatedAt: Date().addingTimeInterval(-20 * 60))
+    }
+
+    private static var sampleSecond: ProactiveMatter {
+        ProactiveMatter(kind: .calendarChange, matterKey: "snapshot-calendar", sourceRef: "snapshot", sourceVersion: "1",
+                        title: "Team meeting moved to 15:00", summary: "Friday’s team meeting now starts an hour later.",
+                        preparedPrompt: "What changes for my Friday?")
     }
 
     /// `tool`: another notch tool shows right of the housing, like tinyStats, in front of the island.

@@ -1,4 +1,5 @@
 import AppKit
+import PippaCore
 import SwiftUI
 import UniformTypeIdentifiers
 
@@ -8,6 +9,7 @@ import UniformTypeIdentifiers
 struct Welcome: View {
     @ObservedObject var chat: ChatModel
     @ObservedObject var setup: SetupModel
+    @ObservedObject private var proactivity = ProactivityCoordinator.shared
     private let suggestions: [(symbol: String, text: String)] = [
         ("calendar", T("What’s on my calendar this week?", table: "App")),
         ("doc.text.magnifyingglass", T("Find my lease and tell me the notice period", table: "App")),
@@ -17,6 +19,11 @@ struct Welcome: View {
 
     /// First run with no AI ready yet: hide the dead composer and keep the One PDF file-drop path prominent instead.
     private var hidesComposer: Bool { setup.needsAttention && !setup.canAnswer }
+
+    /// What Pippa prepared, shown under the composer only while calm notices are on and something waits.
+    private var showsReady: Bool {
+        proactivity.settings.enabled && !proactivity.openMatters.isEmpty && !setup.needsAttention
+    }
 
     private var isDownloading: Bool {
         if case .downloading = setup.state { return true }
@@ -42,6 +49,12 @@ struct Welcome: View {
                     } else {
                         Composer(chat: chat, setup: setup)
                     }
+                    if showsReady {
+                        ReadyStrip(matters: Array(proactivity.openMatters.prefix(2)), coordinator: proactivity)
+                            .frame(maxWidth: Layout.cardMax)
+                            .padding(.horizontal, Layout.gutter)
+                            .transition(.opacity)
+                    }
                     if !setup.needsAttention {
                         suggestionsGrid.transition(.opacity)
                     }
@@ -49,6 +62,7 @@ struct Welcome: View {
                 .animation(Theme.arrive, value: setup.needsAttention)
                 .animation(Theme.arrive, value: hidesComposer)
                 .animation(Theme.arrive, value: chat.attachments.isEmpty)
+                .animation(Theme.arrive, value: showsReady)
                 .padding(.vertical, Space.x4)
                 .frame(maxWidth: .infinity)
                 // Center the complete introduction when there is room; shorter windows scroll naturally.
@@ -144,6 +158,49 @@ struct Welcome: View {
         }
         .frame(maxWidth: Layout.cardMax)
         .padding(.horizontal, Layout.gutter)
+    }
+}
+
+/// "Ready for you" under the composer: the newest prepared items with Open and Done, and the way to the rest.
+private struct ReadyStrip: View {
+    var matters: [ProactiveMatter]
+    var coordinator: ProactivityCoordinator
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(spacing: Space.m) {
+                Text(T("Ready for you", table: "Views")).font(Typo.callout.weight(.semibold)).foregroundStyle(Theme.ink)
+                    .accessibilityAddTraits(.isHeader)
+                Spacer(minLength: Space.m)
+                Button(T("See all in For You", table: "Views")) { coordinator.openDesk() }
+                    .pippa(.quiet).font(Typo.footnote.weight(.medium))
+            }
+            .padding(.horizontal, Space.card).padding(.top, Space.l).padding(.bottom, Space.s)
+            ForEach(matters) { matter in
+                SettingsDivider()
+                HStack(spacing: Space.ml) {
+                    Image(systemName: RoutineUI.kindIcon(matter.kind))
+                        .font(Typo.callout.weight(.medium)).foregroundStyle(Theme.accent).frame(width: 18)
+                        .accessibilityHidden(true)
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text(matter.title).font(Typo.callout.weight(.medium)).foregroundStyle(Theme.ink).lineLimit(1)
+                        if !matter.summary.isEmpty {
+                            Text(matter.summary.split(whereSeparator: \.isNewline).first.map(String.init) ?? matter.summary)
+                                .font(Typo.footnote).foregroundStyle(Theme.ink2).lineLimit(1)
+                        }
+                    }
+                    .layoutPriority(1)
+                    Spacer(minLength: Space.m)
+                    ActionPill(title: T("Open", table: "Views"), primary: true) {
+                        coordinator.openInChat(matter, autoSend: false, surface: .panel)
+                    }
+                    ActionPill(title: T("Done", table: "Views")) { coordinator.markDone(matter, surface: .panel) }
+                }
+                .padding(.horizontal, Space.card).padding(.vertical, Space.ml)
+                .accessibilityElement(children: .contain)
+            }
+        }
+        .raised(Radius.card)
     }
 }
 
