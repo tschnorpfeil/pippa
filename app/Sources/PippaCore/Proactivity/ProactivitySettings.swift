@@ -5,6 +5,12 @@ public enum ProactiveMatterKind: String, Codable, Sendable, Equatable, Hashable,
     case morningBrief = "morning_brief"
     case watchedFile = "watched_file"
     case followUp = "follow_up"
+    /// A person-defined or built-in proactive routine (`ProactiveRoutine`).
+    case routine = "routine"
+    /// A reactive watcher noticed new or moved appointments (`CalendarRadarBuilder`).
+    case calendarChange = "calendar_change"
+    /// A reactive watcher noticed reminders that came due (`ReminderRadarBuilder`).
+    case reminderDue = "reminder_due"
 }
 
 /// Opt-in configuration for Pippa's calm proactivity contract.
@@ -73,7 +79,9 @@ public struct ProactivitySettings: Codable, Sendable, Equatable {
         self.quietStartHour = Self.clampHour(try container.decodeIfPresent(Int.self, forKey: .quietStartHour) ?? 22)
         self.quietEndHour = Self.clampHour(try container.decodeIfPresent(Int.self, forKey: .quietEndHour) ?? 8)
         self.dailyCap = Self.clampDailyCap(try container.decodeIfPresent(Int.self, forKey: .dailyCap) ?? 2)
-        self.mutedKinds = try container.decodeIfPresent(Set<ProactiveMatterKind>.self, forKey: .mutedKinds) ?? []
+        // Unknown kinds (from a newer or older Pippa) are ignored instead of failing the whole settings file.
+        let rawMuted = (try? container.decodeIfPresent([String].self, forKey: .mutedKinds)) ?? nil
+        self.mutedKinds = Set((rawMuted ?? []).compactMap(ProactiveMatterKind.init(rawValue:)))
     }
 
     public func isMuted(_ kind: ProactiveMatterKind) -> Bool {

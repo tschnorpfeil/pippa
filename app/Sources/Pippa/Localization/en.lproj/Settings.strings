@@ -122,7 +122,6 @@
 "%@ has Mac access. Tool results and files you attach directly go to this provider without review. The rules below apply to excerpts you choose to review, such as Selected Email in Mail." = "%@ has Mac access. Tool results and files you attach directly go to this provider without review. The rules below apply to excerpts you choose to review, such as Selected Email in Mail.";
 "The online AI changed. Check it and try again." = "The online AI changed. Check it and try again.";
 "Calm notices" = "Calm notices";
-"Off unless you turn it on. At most two a day, shown quietly in Pippa Island, never on top of your work. Pippa never wakes her local AI in the background and waits during quiet hours, a Focus and while the screen is locked." = "Off unless you turn it on. At most two a day, shown quietly in Pippa Island, never on top of your work. Pippa never wakes her local AI in the background and waits during quiet hours, a Focus and while the screen is locked.";
 "Pippa prepares things for you and waits until you open the island." = "Pippa prepares things for you and waits until you open the island.";
 "Muted kinds: %lld" = "Muted kinds: %lld";
 "Notices you muted from the island." = "Notices you muted from the island.";
@@ -139,9 +138,20 @@
 "Watch Folder" = "Watch Folder";
 "Choose…" = "Choose…";
 "Quiet hours" = "Quiet hours";
-"No notices from 22:00 to 08:00." = "No notices from 22:00 to 08:00.";
 "Pippa also waits while a Focus is on." = "Pippa also waits while a Focus is on.";
 "Pippa waits during quiet hours and while the screen is locked." = "Pippa waits during quiet hours and while the screen is locked.";
 "Pippa %@ is ready to install." = "Pippa %@ is ready to install.";
 "Install the update" = "Install the update";
 "Pippa restarts and is back in a few seconds." = "Pippa restarts and is back in a few seconds.";
+
+/* Proactive Pippa: For You, routines. */
+"1 per day" = "1 per day";
+"2 per day" = "2 per day";
+"Daily Island limit" = "Daily Island limit";
+"Everything Pippa prepared, and what she checks regularly." = "Everything Pippa prepared, and what she checks regularly.";
+"For You & routines" = "For You & routines";
+"How many notices may appear in Pippa Island each day. Everything else waits quietly in For You." = "How many notices may appear in Pippa Island each day. Everything else waits quietly in For You.";
+"No notices from %@ to %@." = "No notices from %@ to %@.";
+"Off unless you turn it on. Built-in routines work without AI. A check with the local AI runs only if you choose it for a routine, and it only reads: it never sends, changes files or goes online. Notices wait during quiet hours, a Focus and while the screen is locked." = "Off unless you turn it on. Built-in routines work without AI. A check with the local AI runs only if you choose it for a routine, and it only reads: it never sends, changes files or goes online. Notices wait during quiet hours, a Focus and while the screen is locked.";
+"Open For You…" = "Open For You…";
+"to" = "to";

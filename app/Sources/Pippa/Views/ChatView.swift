@@ -13,22 +13,34 @@ struct ChatView: View {
     @ObservedObject private var browser = WKBrowserSession.shared
     /// Keep the conversation spacious by default; remember an explicit choice to show the inspector.
     private let panelState: State<Bool>
+    @ObservedObject private var proactivity = ProactivityCoordinator.shared
+    /// "For You" instead of the conversation in the middle.
+    private let forYouState: State<Bool>
+    /// Stable presenter for the routine editor sheet so `@Environment(\.openRoutineEditor)` stays `Equatable`
+    /// across streaming tokens and never invalidates `MessageView.equatable()`.
+    @StateObject private var editorPresenter = RoutineEditorPresenter()
 
-    /// `inspector`: snapshots show or hide "About this answer" whatever the saved choice is.
-    init(chat: ChatModel, setup: SetupModel, inspector: Bool? = nil) {
+    /// `inspector`: snapshots show or hide "About this answer" whatever the saved choice is. `showingForYou`: snapshots
+    /// start on "For You".
+    init(chat: ChatModel, setup: SetupModel, inspector: Bool? = nil, showingForYou: Bool = false) {
         self.chat = chat
         self.setup = setup
         panelState = State(initialValue: inspector ?? UserDefaults.standard.object(forKey: "contextPanel") as? Bool ?? false)
+        forYouState = State(initialValue: showingForYou)
     }
+
+    private var showingForYou: Bool { forYouState.wrappedValue }
 
     var body: some View {
         NavigationSplitView {
-            Sidebar(chat: chat, search: searchState.projectedValue)
+            Sidebar(chat: chat, search: searchState.projectedValue, showingForYou: forYouState.projectedValue)
                 .navigationSplitViewColumnWidth(min: 200, ideal: Layout.sidebarIdeal, max: 340)
         } detail: {
             HStack(spacing: 0) {
                 Group {
-                    if let conversation = chat.current, !conversation.messages.isEmpty {
+                    if showingForYou {
+                        ProactiveDeskView(chat: chat, setup: setup)
+                    } else if let conversation = chat.current, !conversation.messages.isEmpty {
                         Transcript(chat: chat, setup: setup, conversation: conversation)
                     } else {
                         Welcome(chat: chat, setup: setup)
@@ -45,7 +57,7 @@ struct ChatView: View {
             }
             .animation(Theme.quick, value: browser.isOpen)
             // The conversation's title only: which AI answers is said once, in the composer.
-            .navigationTitle(chat.current?.title ?? "Pippa")
+            .navigationTitle(showingForYou ? T("For You", table: "App") : chat.current?.title ?? "Pippa")
             .inspector(isPresented: panelState.projectedValue) {
                 ContextPanel(chat: chat, setup: setup)
                     .inspectorColumnWidth(min: 240, ideal: Layout.inspector, max: 340)
@@ -87,6 +99,20 @@ struct ChatView: View {
         .sheet(isPresented: $setup.showsOnlineSetup) {
             OnlineSetupSheet(settings: .shared, setup: setup) { setup.showsOnlineSetup = false }
         }
+        .sheet(item: $editorPresenter.seed) { seed in
+            RoutineEditorSheet(seed: seed) { editorPresenter.dismiss() }
+        }
+        .environment(\.openRoutineEditor, RoutineEditorAction(id: editorPresenter.id) { [weak editorPresenter] seed in
+            editorPresenter?.open(seed)
+        })
+        .onReceive(proactivity.$openDeskRequested) { requested in
+            guard requested else { return }
+            forYouState.wrappedValue = true
+            proactivity.openDeskRequested = false
+        }
+        // Any explicit chat activation (sidebar conversation, ⌘N, Open in Chat, Island, file drop) leaves "For You".
+        .onChange(of: chat.currentID) { _, _ in forYouState.wrappedValue = false }
+        .onChange(of: proactivity.openChatToken) { _, _ in forYouState.wrappedValue = false }
     }
 
     /// What the latest answer read and did: shown on the panel button while the panel is closed.
@@ -99,10 +125,42 @@ struct ChatView: View {
 /// Snapshots only: every "Worked for …" row starts open, to check the steps and the thinking.
 private struct ExpandsWorkKey: EnvironmentKey { static let defaultValue = false }
 
+/// Stable presenter backing `RoutineEditorAction` so environment identity never churns during streaming.
+@MainActor
+private final class RoutineEditorPresenter: ObservableObject {
+    @Published var seed: RoutineEditorSeed?
+    let id = UUID()
+    func open(_ seed: RoutineEditorSeed) { self.seed = seed }
+    func dismiss() { self.seed = nil }
+}
+
+/// Opens the routine editor from anywhere in the chat window: "Save as routine…", "Make routine", the desk.
+struct RoutineEditorAction: Equatable, Sendable {
+    let id: UUID
+    private let open: @MainActor @Sendable (RoutineEditorSeed) -> Void
+
+    init(id: UUID = UUID(), open: @escaping @MainActor @Sendable (RoutineEditorSeed) -> Void) {
+        self.id = id
+        self.open = open
+    }
+
+    static func == (lhs: Self, rhs: Self) -> Bool { lhs.id == rhs.id }
+    @MainActor func callAsFunction(_ seed: RoutineEditorSeed) { open(seed) }
+}
+
+private struct OpenRoutineEditorKey: EnvironmentKey {
+    static let defaultValue = RoutineEditorAction(id: UUID(uuidString: "00000000-0000-0000-0000-000000000000")!) { _ in }
+}
+
 extension EnvironmentValues {
     var expandsWork: Bool {
         get { self[ExpandsWorkKey.self] }
         set { self[ExpandsWorkKey.self] = newValue }
+    }
+
+    var openRoutineEditor: RoutineEditorAction {
+        get { self[OpenRoutineEditorKey.self] }
+        set { self[OpenRoutineEditorKey.self] = newValue }
     }
 }
 

@@ -49,6 +49,7 @@ enum AppActions {
     /// Opens the chat; the app that was in front becomes a chip the person can keep or remove.
     static func callPippa(front: NSRunningApplication? = NSWorkspace.shared.frontmostApplication) {
         noteFrontApp(front)
+        ProactivityCoordinator.shared.dismissDesk()
         ChatWindow.shared.show()
     }
 
@@ -62,6 +63,7 @@ enum AppActions {
 
     static func attach(_ urls: [URL]) {
         ChatModel.shared.attachments += MailDropIdentity.attachments(urls, excluding: ChatModel.shared.attachments)
+        ProactivityCoordinator.shared.dismissDesk()
         ChatWindow.shared.show()
     }
 }

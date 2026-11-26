@@ -71,6 +71,9 @@ public struct PippaMCPHost: Sendable {
     /// Set for an online AI's Pi process: only these tools are listed and callable, with scrubbed results (PippaMCPEgress).
     /// `nil`: the AI on this Mac, all tools.
     public var egress: PippaMCPEgress?
+    /// Set for a background routine's Pi process: only `read` tools are listed and callable; everything else is refused
+    /// before the class gate and before dispatch, so a routine can never change anything or reach anyone.
+    public var readOnly: Bool = false
     /// Resolves whether a host points to a private/local address (defaults to `PippaMCPBrowserTool.resolvesToPrivateAddress`).
     public var resolveHostIsPrivate: @Sendable (_ host: String) async -> Bool = { host in
         await PippaMCPBrowserTool.resolvesToPrivateAddress(host)

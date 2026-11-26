@@ -140,6 +140,8 @@ public enum ProactivityDecision: Sendable, Equatable {
         case muted
         case closed
         case stale
+        /// The routine asked for the Desk only: the Island ignores it without spending the daily budget.
+        case deskOnly
     }
 
     case deliver
@@ -157,9 +159,11 @@ public enum ProactivityGate {
         isAnswering: Bool = false,
         isFresh: Bool = true,
         now: Date = Date(),
-        calendar: Calendar = .autoupdatingCurrent
+        calendar: Calendar = .autoupdatingCurrent,
+        routineEnabled: Bool = true,
+        deliveryMode: RoutineDeliveryMode = .islandAndDesk
     ) -> ProactivityDecision {
-        guard settings.enabled else {
+        guard settings.enabled, routineEnabled else {
             return .drop(reason: .disabled)
         }
         if matter.kind == .morningBrief && !settings.morningBriefEnabled {
@@ -173,6 +177,10 @@ public enum ProactivityGate {
         }
         if !isFresh {
             return .drop(reason: .stale)
+        }
+        // Before any hold: a Desk-only matter never waits for, or counts against, the Island's daily budget.
+        if deliveryMode == .deskOnly {
+            return .drop(reason: .deskOnly)
         }
         if matter.state == .snoozed {
             let stillSnoozed = matter.snoozedUntil.map { $0 > now } ?? true
@@ -210,7 +218,9 @@ public enum ProactivityGate {
         isAnswering: Bool = false,
         isFresh: Bool = true,
         now: Date = Date(),
-        calendar: Calendar = .autoupdatingCurrent
+        calendar: Calendar = .autoupdatingCurrent,
+        routineEnabled: Bool = true,
+        deliveryMode: RoutineDeliveryMode = .islandAndDesk
     ) -> ProactivityDecision {
         evaluate(
             matter: matter,
@@ -220,7 +230,9 @@ public enum ProactivityGate {
             isAnswering: isAnswering,
             isFresh: isFresh,
             now: now,
-            calendar: calendar
+            calendar: calendar,
+            routineEnabled: routineEnabled,
+            deliveryMode: deliveryMode
         )
     }
 

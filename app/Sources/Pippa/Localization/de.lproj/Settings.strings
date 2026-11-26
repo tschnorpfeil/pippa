@@ -122,7 +122,6 @@
 "%@ has Mac access. Tool results and files you attach directly go to this provider without review. The rules below apply to excerpts you choose to review, such as Selected Email in Mail." = "%@ hat Mac-Zugriff. Werkzeugergebnisse und direkt angehängte Dateien gehen ohne Prüfung an diesen Anbieter. Die Regeln unten gelten für Ausschnitte, die du zur Prüfung auswählst, etwa „Ausgewählte Mail in Mail“.";
 "The online AI changed. Check it and try again." = "Die Online-KI hat sich geändert. Prüfe sie und versuch es noch einmal.";
 "Calm notices" = "Ruhige Hinweise";
-"Off unless you turn it on. At most two a day, shown quietly in Pippa Island, never on top of your work. Pippa never wakes her local AI in the background and waits during quiet hours, a Focus and while the screen is locked." = "Aus, bis du es einschaltest. Höchstens zwei am Tag, still in Pippa Island, nie über deiner Arbeit. Pippa weckt ihre lokale KI nie im Hintergrund und wartet in der Ruhezeit, während eines Fokus und solange der Bildschirm gesperrt ist.";
 "Pippa prepares things for you and waits until you open the island." = "Pippa bereitet Dinge für dich vor und wartet, bis du die Island öffnest.";
 "Muted kinds: %lld" = "Stummgeschaltete Arten: %lld";
 "Notices you muted from the island." = "Hinweise, die du in der Island stummgeschaltet hast.";
@@ -139,9 +138,20 @@
 "Watch Folder" = "Ordner beobachten";
 "Choose…" = "Auswählen …";
 "Quiet hours" = "Ruhezeit";
-"No notices from 22:00 to 08:00." = "Keine Hinweise von 22:00 bis 08:00 Uhr.";
 "Pippa also waits while a Focus is on." = "Pippa wartet auch, solange ein Fokus an ist.";
 "Pippa waits during quiet hours and while the screen is locked." = "Pippa wartet in der Ruhezeit und solange der Bildschirm gesperrt ist.";
 "Pippa %@ is ready to install." = "Pippa %@ ist bereit zur Installation.";
 "Install the update" = "Update installieren";
 "Pippa restarts and is back in a few seconds." = "Pippa startet neu und ist in ein paar Sekunden zurück.";
+
+/* Proactive Pippa: For You, routines. */
+"1 per day" = "1 pro Tag";
+"2 per day" = "2 pro Tag";
+"Daily Island limit" = "Tageslimit in Pippa Island";
+"Everything Pippa prepared, and what she checks regularly." = "Alles, was Pippa vorbereitet hat, und was sie regelmäßig prüft.";
+"For You & routines" = "Für dich & Routinen";
+"How many notices may appear in Pippa Island each day. Everything else waits quietly in For You." = "Wie viele Hinweise am Tag in Pippa Island erscheinen dürfen. Alles andere wartet still in „Für dich“.";
+"No notices from %@ to %@." = "Keine Hinweise von %@ bis %@.";
+"Off unless you turn it on. Built-in routines work without AI. A check with the local AI runs only if you choose it for a routine, and it only reads: it never sends, changes files or goes online. Notices wait during quiet hours, a Focus and while the screen is locked." = "Aus, bis du es einschaltest. Die eingebauten Routinen arbeiten ohne KI. Eine Prüfung mit der lokalen KI läuft nur, wenn du sie für eine Routine wählst, und sie liest nur: Sie sendet nichts, ändert keine Dateien und geht nicht online. Hinweise warten während der Ruhezeiten, eines Fokus und solange der Bildschirm gesperrt ist.";
+"Open For You…" = "„Für dich“ öffnen …";
+"to" = "bis";

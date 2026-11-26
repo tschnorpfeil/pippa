@@ -6,6 +6,9 @@ import SwiftUI
 struct Sidebar: View {
     @ObservedObject var chat: ChatModel
     var search: Binding<String>
+    /// "For You" shows in the middle instead of a conversation.
+    var showingForYou: Binding<Bool>
+    @ObservedObject private var proactivity = ProactivityCoordinator.shared
     /// The conversation whose title is being edited right in its row.
     private let renamingState = State<String?>(initialValue: nil)
     @Environment(\.colorScheme) private var colorScheme
@@ -16,19 +19,28 @@ struct Sidebar: View {
         let groups = self.groups
         let query = self.query
         List {
-            NewConversationRow { chat.newConversation() }
-                .listRowInsets(EdgeInsets(top: Space.xxs, leading: 0, bottom: Space.s, trailing: 0))
+            NewConversationRow { newConversation() }
+                .listRowInsets(EdgeInsets(top: Space.xxs, leading: 0, bottom: 0, trailing: 0))
+            ForYouRow(selected: showingForYou.wrappedValue,
+                      count: proactivity.settings.enabled ? proactivity.openMatters.count : 0,
+                      watching: proactivity.settings.enabled) {
+                showingForYou.wrappedValue = true
+            }
+            .listRowInsets(EdgeInsets(top: Space.xxs, leading: 0, bottom: Space.s, trailing: 0))
             ForEach(groups, id: \.title) { group in
                 Section(group.title) {
                     ForEach(group.items) { conversation in
                         ConversationRow(conversation: conversation,
-                                        selected: conversation.id == chat.currentID,
+                                        selected: !showingForYou.wrappedValue && conversation.id == chat.currentID,
                                         answering: chat.isAnswering && chat.answeringID == conversation.id,
                                         unseen: chat.unseenIDs.contains(conversation.id),
                                         snippet: query.isEmpty ? nil : Self.snippet(conversation, query: query),
                                         canDelete: !(chat.isAnswering && chat.answeringID == conversation.id),
                                         renaming: renamingState.wrappedValue == conversation.id,
-                                        open: { chat.select(conversation.id) },
+                                        open: {
+                                            showingForYou.wrappedValue = false
+                                            chat.select(conversation.id)
+                                        },
                                         rename: { renamingState.wrappedValue = conversation.id },
                                         commitRename: { name in
                                             let name = name.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -49,14 +61,19 @@ struct Sidebar: View {
         .searchable(text: search, placement: .sidebar, prompt: T("Search", table: "App"))
         .overlay {
             // Before the saved conversations are read, the list is just empty for a moment, not "nothing here".
-            if groups.isEmpty && chat.isLoaded { emptyState.padding(.top, 44) }
+            if groups.isEmpty && chat.isLoaded { emptyState.padding(.top, 80) }
         }
         .toolbar {
             ToolbarItem {
-                Button { chat.newConversation() } label: { Label(T("New Conversation", table: "App"), systemImage: "square.and.pencil") }
+                Button { newConversation() } label: { Label(T("New Conversation", table: "App"), systemImage: "square.and.pencil") }
                     .help(T("New Conversation", table: "App") + " (⌘N)")
             }
         }
+    }
+
+    private func newConversation() {
+        showingForYou.wrappedValue = false
+        chat.newConversation()
     }
 
     private var emptyState: some View {
@@ -151,6 +168,59 @@ private struct NewConversationRow: View {
         .buttonStyle(.plain)
         .onHover { hovering in withAnimation(Theme.quick) { hoverState.wrappedValue = hovering } }
         .help(T("New Conversation", table: "App") + " (⌘N)")
+    }
+}
+
+/// "For You": what Pippa prepared quietly. A count when something waits, a small green dot while she only watches.
+private struct ForYouRow: View {
+    var selected: Bool
+    var count: Int
+    var watching: Bool
+    var action: () -> Void
+    private let hoverState = State(initialValue: false)
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: Space.m) {
+                Image(systemName: selected ? "tray.fill" : "tray")
+                    .font(Typo.callout.weight(.medium)).foregroundStyle(selected ? Theme.ink : Theme.ink2)
+                    .frame(width: 18)
+                Text(T("For You", table: "App"))
+                    .font(Typo.callout.weight(.medium)).foregroundStyle(Theme.ink)
+                Spacer(minLength: Space.xs)
+                if count > 0 {
+                    Text(verbatim: "\(min(count, 99))")
+                        .font(Typo.caption.weight(.semibold)).monospacedDigit()
+                        .contentTransition(.numericText())
+                        .foregroundStyle(Theme.ink2)
+                        .padding(.horizontal, Space.s)
+                        .frame(minWidth: 20, minHeight: 18)
+                        .background(Theme.fill2, in: Capsule())
+                        .accessibilityLabel(T("%lld ready", table: "App", count))
+                } else if watching {
+                    Circle().fill(Theme.ok).frame(width: 6, height: 6)
+                        .padding(.trailing, Space.xs)
+                        .accessibilityLabel(T("Watching quietly", table: "App"))
+                }
+            }
+            .padding(.horizontal, Space.m)
+            .frame(height: Space.x4)
+            .background {
+                let shape = RoundedRectangle(cornerRadius: Radius.control, style: .continuous)
+                if selected {
+                    shape.fill(Theme.rowSelected).overlay { shape.strokeBorder(Theme.hairline, lineWidth: 1) }
+                        .shadow(color: .black.opacity(0.04), radius: 1, y: 0.5)
+                } else if hoverState.wrappedValue {
+                    shape.fill(Theme.rowHover)
+                }
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .animation(Theme.quick, value: count)
+        .onHover { hovering in withAnimation(Theme.quick) { hoverState.wrappedValue = hovering } }
+        .accessibilityAddTraits(selected ? .isSelected : [])
+        .help(T("What Pippa prepared for you", table: "App"))
     }
 }
 

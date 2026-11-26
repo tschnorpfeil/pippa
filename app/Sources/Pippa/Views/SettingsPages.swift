@@ -64,13 +64,29 @@ struct CalmNoticeSettings: View {
     var body: some View {
         let settings = coordinator.settings
         SettingsSection(title: T("Calm notices", table: "Settings"),
-                        footer: T("Off unless you turn it on. At most two a day, shown quietly in Pippa Island, never on top of your work. Pippa never wakes her local AI in the background and waits during quiet hours, a Focus and while the screen is locked.", table: "Settings")) {
+                        footer: T("Off unless you turn it on. Built-in routines work without AI. A check with the local AI runs only if you choose it for a routine, and it only reads: it never sends, changes files or goes online. Notices wait during quiet hours, a Focus and while the screen is locked.", table: "Settings")) {
             SettingsRow(title: T("Calm notices", table: "Settings"),
                         detail: T("Pippa prepares things for you and waits until you open the island.", table: "Settings")) {
                 Toggle(T("Calm notices", table: "Settings"), isOn: Binding(get: { settings.enabled }, set: { coordinator.setEnabled($0) }))
                     .labelsHidden().toggleStyle(.switch)
             }
             if settings.enabled {
+                SettingsDivider()
+                SettingsRow(title: T("For You & routines", table: "Settings"),
+                            detail: T("Everything Pippa prepared, and what she checks regularly.", table: "Settings")) {
+                    Button(T("Open For You…", table: "Settings")) { coordinator.openDesk() }.pippa(.secondary)
+                }
+                SettingsDivider()
+                SettingsRow(title: T("Daily Island limit", table: "Settings"),
+                            detail: T("How many notices may appear in Pippa Island each day. Everything else waits quietly in For You.", table: "Settings")) {
+                    Picker(T("Daily Island limit", table: "Settings"), selection: Binding(
+                        get: { ProactivitySettings.clampDailyCap(settings.dailyCap) },
+                        set: { coordinator.setDailyCap($0) })) {
+                        Text(T("1 per day", table: "Settings")).tag(1)
+                        Text(T("2 per day", table: "Settings")).tag(2)
+                    }
+                    .labelsHidden().fixedSize()
+                }
                 SettingsDivider()
                 morningBrief(settings)
                 SettingsDivider()
@@ -133,16 +149,39 @@ struct CalmNoticeSettings: View {
     }
 
     @ViewBuilder private func quietHours(_ settings: ProactivitySettings) -> some View {
-        SettingsRow(title: T("Quiet hours", table: "Settings"), detail: T("No notices from 22:00 to 08:00.", table: "Settings")) {
+        SettingsRow(title: T("Quiet hours", table: "Settings"),
+                    detail: T("No notices from %@ to %@.", table: "Settings", Self.hour(settings.quietStartHour), Self.hour(settings.quietEndHour))) {
             Toggle(T("Quiet hours", table: "Settings"),
                    isOn: Binding(get: { settings.quietHoursEnabled }, set: { coordinator.setQuietHours(enabled: $0) }))
                 .labelsHidden().toggleStyle(.switch)
+        }
+        if settings.quietHoursEnabled {
+            SettingsRow(title: T("From", table: "Settings")) {
+                HStack(spacing: Space.s) {
+                    hourPicker(T("From", table: "Settings"), selection: Binding(
+                        get: { settings.quietStartHour },
+                        set: { coordinator.setQuietHours(enabled: true, startHour: $0, endHour: settings.quietEndHour) }))
+                    Text(T("to", table: "Settings")).foregroundStyle(Theme.ink2)
+                    hourPicker(T("to", table: "Settings"), selection: Binding(
+                        get: { settings.quietEndHour },
+                        set: { coordinator.setQuietHours(enabled: true, startHour: settings.quietStartHour, endHour: $0) }))
+                }
+            }
         }
         SettingsNote(coordinator.focusAuthorization == .authorized
                      ? T("Pippa also waits while a Focus is on.", table: "Settings")
                      : T("Pippa waits during quiet hours and while the screen is locked.", table: "Settings"))
             .padding(.bottom, Space.ml)
     }
+
+    private func hourPicker(_ label: String, selection: Binding<Int>) -> some View {
+        Picker(label, selection: selection) {
+            ForEach(0..<24, id: \.self) { hour in Text(verbatim: Self.hour(hour)).tag(hour) }
+        }
+        .labelsHidden().fixedSize()
+    }
+
+    private static func hour(_ hour: Int) -> String { String(format: "%02d:00", min(max(hour, 0), 23)) }
 }
 
 /// AI: the AI on this Mac (or its setup), then the online AI.

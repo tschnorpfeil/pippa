@@ -57,3 +57,27 @@ export function hideWorkingFolder(event: any): void {
 	const sections = event?.systemPromptOptions?.sections;
 	if (sections && typeof sections === "object") sections.cwd = HIDDEN_FOLDER;
 }
+
+/** Read-only local tools permitted during a background routine (`PIPPA_READ_ONLY=1`). */
+export const READ_ONLY_LOCAL_TOOLS = ["read", "search_files", "list_folder"];
+
+/** Read-only Pippa MCP tools permitted during a background routine (`PIPPA_READ_ONLY=1`). */
+export const READ_ONLY_MCP_TOOLS = [
+	"calendar_read", "reminders_read", "mail_search", "mail_read", "mail_folders",
+	"photos_search", "front_read", "notes_read", "contacts_search", "compute", "read_document",
+].map((name) => `mcp__pippa__${name}`);
+
+/** Active when a background routine runs (`PIPPA_READ_ONLY=1`). Any other value is treated as off. */
+export function readOnly(env: Record<string, string | undefined> = process.env): Egress | undefined {
+	if (env.PIPPA_READ_ONLY !== "1") return undefined;
+	return { tools: new Set([...READ_ONLY_LOCAL_TOOLS, ...READ_ONLY_MCP_TOOLS]) };
+}
+
+/** Refusal payload when a read-only background routine reaches for a tool that writes, runs commands, asks or goes online. */
+export function readOnlyBlockReason(guard: Egress, tool: string): string | undefined {
+	if (allows(guard, tool)) return undefined;
+	return JSON.stringify({
+		done: false, status: "read_only", tool,
+		next: "Background routines can only read and cannot run commands, ask questions, change files or contact external services.",
+	});
+}

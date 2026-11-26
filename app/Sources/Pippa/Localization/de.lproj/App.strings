@@ -334,3 +334,12 @@
 "Pippa is already checking for updates." = "Pippa sucht schon nach Updates.";
 "Please try again in a moment." = "Versuch es gleich noch einmal.";
 "Restart to Update (%@)" = "Neu starten & aktualisieren (%@)";
+
+/* Proactive Pippa: For You, routines. */
+"%lld ready" = "%lld bereit";
+"For You" = "Für dich";
+"Let Pippa do this regularly and place the result in For You" = "Pippa macht das regelmäßig und legt das Ergebnis in „Für dich“";
+"Make routine" = "Als Routine";
+"Save as routine…" = "Als Routine sichern …";
+"Watching quietly" = "Achtet in Ruhe";
+"What Pippa prepared for you" = "Was Pippa für dich vorbereitet hat";

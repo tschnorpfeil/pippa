@@ -4,8 +4,8 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-const { egress, blockReason, onlyAllowedTools, hideWorkingFolder, HIDDEN_FOLDER } = await import("./egress.ts");
-const { requiredTools, discoverNativeTools, REQUIRED_TOOLS, serverConfig } = await import("./pippa-mcp.ts");
+const { egress, blockReason, onlyAllowedTools, hideWorkingFolder, HIDDEN_FOLDER, readOnly, readOnlyBlockReason, READ_ONLY_LOCAL_TOOLS, READ_ONLY_MCP_TOOLS } = await import("./egress.ts");
+const { requiredTools, discoverNativeTools, REQUIRED_TOOLS, READ_ONLY_TOOLS, READ_ONLY_FORBIDDEN_TOOLS, serverConfig, withCodemode } = await import("./pippa-mcp.ts");
 
 const online = { PIPPA_EGRESS: "online", PIPPA_EGRESS_TOOLS: "ask,web_search,mcp__pippa__calendar_add" };
 
@@ -73,4 +73,45 @@ test("readiness online: exactly the allowed Pippa tools, and any other one regis
 	assert.equal((await discoverNativeTools(fake(["mcp__pippa__calendar_add"]), config, 0, undefined, expected)).status, "ready");
 	assert.equal((await discoverNativeTools(fake(["mcp__pippa__calendar_add", "mcp__pippa__mail_read"]), config, 0, undefined, expected)).status,
 		"registrationMismatch");
+});
+
+test("read-only mode: allows only local and MCP readers, blocks writes/shell/ask/online, never loads codemode", async () => {
+	assert.equal(readOnly({}), undefined);
+	assert.equal(readOnly({ PIPPA_READ_ONLY: "0" }), undefined);
+	const guard = readOnly({ PIPPA_READ_ONLY: "1" });
+	assert.ok(guard);
+	for (const tool of [...READ_ONLY_LOCAL_TOOLS, ...READ_ONLY_MCP_TOOLS]) {
+		assert.equal(readOnlyBlockReason(guard, tool), undefined, tool);
+	}
+	for (const tool of ["bash", "write", "edit", "ask", "move_files", "remember", "web_search", "fetch_content", "codemode",
+		"mcp__pippa__calendar_add", "mcp__pippa__mail_send", "mcp__pippa__browse"]) {
+		assert.match(readOnlyBlockReason(guard, tool), /read_only/, tool);
+	}
+	const filtered = onlyAllowedTools(guard, {
+		tools: [{ type: "function", function: { name: "read" } }, { type: "function", function: { name: "bash" } }, { type: "function", function: { name: "mcp__pippa__calendar_read" } }],
+		tool_choice: { type: "function", function: { name: "bash" } },
+	});
+	assert.deepEqual(filtered.tools.map((t) => t.function.name), ["read", "mcp__pippa__calendar_read"]);
+	assert.equal("tool_choice" in filtered, false);
+
+	const env = { PIPPA_READ_ONLY: "1", PIPPA_MCP_EXPOSURE: "direct+codemode" };
+	assert.equal(withCodemode(env), false);
+	assert.equal(serverConfig({ PIPPA_MCP_URL: "http://127.0.0.1:1/mcp", PIPPA_MCP_TOKEN: "ab".repeat(32), PIPPA_MCP_EXPOSURE: "codemode", PIPPA_READ_ONLY: "1" }).exposure, "direct");
+	const expected = requiredTools(env);
+	assert.deepEqual(expected.required, READ_ONLY_TOOLS);
+	assert.deepEqual(expected.forbidden, READ_ONLY_FORBIDDEN_TOOLS);
+	assert.equal(expected.codemode, false);
+	// Combining read-only and online egress fails closed.
+	const conflict = requiredTools({ PIPPA_READ_ONLY: "1", ...online });
+	assert.deepEqual(conflict.required, []);
+	assert.deepEqual(conflict.forbidden, REQUIRED_TOOLS);
+
+	const config = serverConfig({ PIPPA_MCP_URL: "http://127.0.0.1:1/mcp", PIPPA_MCP_TOKEN: "ab".repeat(32), PIPPA_READ_ONLY: "1" });
+	const fake = (names) => ({
+		getMcpServers: () => [{ name: "pippa", config: { ...config } }],
+		getAllTools: () => names.map((name) => ({ name })), getActiveTools: () => names,
+	});
+	assert.equal((await discoverNativeTools(fake(READ_ONLY_TOOLS), config, 0, undefined, expected)).status, "ready");
+	assert.equal((await discoverNativeTools(fake([...READ_ONLY_TOOLS, "mcp__pippa__calendar_add"]), config, 0, undefined, expected)).status, "registrationMismatch");
+	assert.equal((await discoverNativeTools(fake([...READ_ONLY_TOOLS, "codemode"]), config, 0, undefined, expected)).status, "registrationMismatch");
 });

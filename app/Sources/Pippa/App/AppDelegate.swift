@@ -81,6 +81,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let noticeItem = MenuAction.item("") {
             if let nudge = ProactivityCoordinator.shared.activeNudge {
                 ProactivityCoordinator.shared.openInChat(nudge)
+            } else if ProactivityCoordinator.shared.openMatters.first != nil {
+                ProactivityCoordinator.shared.openDesk()
             }
         }
         let noticeSeparator = NSMenuItem.separator()
@@ -100,6 +102,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             island.state = Island.shared.isShown ? .on : .off
             if let nudge = ProactivityCoordinator.shared.activeNudge {
                 noticeItem.title = nudge.title
+                noticeItem.isHidden = false
+                noticeSeparator.isHidden = false
+            } else if let topReady = ProactivityCoordinator.shared.openMatters.first {
+                noticeItem.title = topReady.title
                 noticeItem.isHidden = false
                 noticeSeparator.isHidden = false
             } else {
@@ -196,8 +202,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let reply = TerminateReply()
         Task { @MainActor in
             async let stoppingLocalModel: Void? = server?.stop()
+            async let stoppingProactivity: Void = ProactivityCoordinator.shared.shutdown()
             await PiSession.shared.shutdown()
+            await stoppingProactivity
             _ = await stoppingLocalModel
+            if let lateServer = PiSession.shared.ownedServer, lateServer !== server {
+                await lateServer.stop()
+            }
             reply.send()
         }
         return .terminateLater
@@ -235,6 +246,7 @@ enum MenuAction {
     /// "New Conversation", in the menu bar symbol's menu and the File menu.
     static func newConversation(key: String = "", modifiers: NSEvent.ModifierFlags = []) -> NSMenuItem {
         item(T("New Conversation", table: "App"), key: key, modifiers: modifiers) {
+            ProactivityCoordinator.shared.dismissDesk()
             ChatModel.shared.newConversation()
             ChatWindow.shared.show()
         }
