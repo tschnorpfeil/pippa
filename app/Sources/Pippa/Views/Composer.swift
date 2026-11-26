@@ -13,6 +13,8 @@ struct Composer: View {
     /// The Photos picker for one picture to share (its text, read on this Mac).
     private let pickingPhoto = State(initialValue: false)
     private let pickedPhoto = State<PhotosPickerItem?>(initialValue: nil)
+    /// Cached routine detection updated once per draft/answering change so `body` never re-runs regexes repeatedly.
+    private let offersRoutineState = State(initialValue: false)
 
     /// How far the drawer reaches under the body.
     private let tuck: CGFloat = 16
@@ -37,7 +39,11 @@ struct Composer: View {
         .frame(maxWidth: Layout.column)
         .padding(.horizontal, Layout.gutter).padding(.top, Space.s).padding(.bottom, Space.xl)
         .frame(maxWidth: .infinity)
-        .onAppear { focused = true }
+        .onAppear {
+            focused = true
+            updateOffersRoutine()
+        }
+        .onChange(of: chat.isAnswering) { _, _ in updateOffersRoutine() }
         .photosPicker(isPresented: pickingPhoto.projectedValue, selection: pickedPhoto.projectedValue, matching: .images,
                       preferredItemEncoding: .compatible)
         .onChange(of: pickedPhoto.wrappedValue) { _, item in
@@ -86,6 +92,7 @@ struct Composer: View {
                     if !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                         PiSession.shared.prewarmForInput()
                     }
+                    updateOffersRoutine()
                 }
                 .onSubmit { if canSend { chat.send() } else if canSteer { chat.steer() } }
                 .padding(.horizontal, Space.xs)
@@ -111,8 +118,11 @@ struct Composer: View {
     }
 
     /// The words ask for something regular ("every weekday at 8 …"): offer to keep it as a routine instead.
-    private var offersRoutine: Bool {
-        !chat.isAnswering && RoutineNaturalLanguageParser.looksLikeRoutineRequest(chat.draft)
+    private var offersRoutine: Bool { offersRoutineState.wrappedValue }
+
+    private func updateOffersRoutine() {
+        let next = !chat.isAnswering && RoutineNaturalLanguageParser.looksLikeRoutineRequest(chat.draft)
+        if offersRoutineState.wrappedValue != next { offersRoutineState.wrappedValue = next }
     }
 
     private var routineButton: some View {

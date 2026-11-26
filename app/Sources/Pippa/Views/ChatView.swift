@@ -16,8 +16,9 @@ struct ChatView: View {
     @ObservedObject private var proactivity = ProactivityCoordinator.shared
     /// "For You" instead of the conversation in the middle.
     private let forYouState: State<Bool>
-    /// The routine editor while it is open.
-    private let editorState = State<RoutineEditorSeed?>(initialValue: nil)
+    /// Stable presenter for the routine editor sheet so `@Environment(\.openRoutineEditor)` stays `Equatable`
+    /// across streaming tokens and never invalidates `MessageView.equatable()`.
+    @StateObject private var editorPresenter = RoutineEditorPresenter()
 
     /// `inspector`: snapshots show or hide "About this answer" whatever the saved choice is. `showingForYou`: snapshots
     /// start on "For You".
@@ -98,21 +99,20 @@ struct ChatView: View {
         .sheet(isPresented: $setup.showsOnlineSetup) {
             OnlineSetupSheet(settings: .shared, setup: setup) { setup.showsOnlineSetup = false }
         }
-        .sheet(item: editorState.projectedValue) { seed in
-            RoutineEditorSheet(seed: seed) { editorState.wrappedValue = nil }
+        .sheet(item: $editorPresenter.seed) { seed in
+            RoutineEditorSheet(seed: seed) { editorPresenter.dismiss() }
         }
-        .environment(\.openRoutineEditor, RoutineEditorAction { seed in editorState.wrappedValue = seed })
+        .environment(\.openRoutineEditor, RoutineEditorAction(id: editorPresenter.id) { [weak editorPresenter] seed in
+            editorPresenter?.open(seed)
+        })
         .onReceive(proactivity.$openDeskRequested) { requested in
             guard requested else { return }
             forYouState.wrappedValue = true
             proactivity.openDeskRequested = false
         }
-        // Another conversation chosen, or words put into the composer from elsewhere ("Open in Chat", the island): the
-        // chat comes back. The desk itself never writes the composer.
+        // Any explicit chat activation (sidebar conversation, ⌘N, Open in Chat, Island, file drop) leaves "For You".
         .onChange(of: chat.currentID) { _, _ in forYouState.wrappedValue = false }
-        .onChange(of: chat.draft) { _, draft in
-            if showingForYou && !draft.isEmpty { forYouState.wrappedValue = false }
-        }
+        .onChange(of: proactivity.openChatToken) { _, _ in forYouState.wrappedValue = false }
     }
 
     /// What the latest answer read and did: shown on the panel button while the panel is closed.
@@ -125,14 +125,31 @@ struct ChatView: View {
 /// Snapshots only: every "Worked for …" row starts open, to check the steps and the thinking.
 private struct ExpandsWorkKey: EnvironmentKey { static let defaultValue = false }
 
+/// Stable presenter backing `RoutineEditorAction` so environment identity never churns during streaming.
+@MainActor
+private final class RoutineEditorPresenter: ObservableObject {
+    @Published var seed: RoutineEditorSeed?
+    let id = UUID()
+    func open(_ seed: RoutineEditorSeed) { self.seed = seed }
+    func dismiss() { self.seed = nil }
+}
+
 /// Opens the routine editor from anywhere in the chat window: "Save as routine…", "Make routine", the desk.
-struct RoutineEditorAction: Sendable {
-    var open: @MainActor @Sendable (RoutineEditorSeed) -> Void
+struct RoutineEditorAction: Equatable, Sendable {
+    let id: UUID
+    private let open: @MainActor @Sendable (RoutineEditorSeed) -> Void
+
+    init(id: UUID = UUID(), open: @escaping @MainActor @Sendable (RoutineEditorSeed) -> Void) {
+        self.id = id
+        self.open = open
+    }
+
+    static func == (lhs: Self, rhs: Self) -> Bool { lhs.id == rhs.id }
     @MainActor func callAsFunction(_ seed: RoutineEditorSeed) { open(seed) }
 }
 
 private struct OpenRoutineEditorKey: EnvironmentKey {
-    static let defaultValue = RoutineEditorAction { _ in }
+    static let defaultValue = RoutineEditorAction(id: UUID(uuidString: "00000000-0000-0000-0000-000000000000")!) { _ in }
 }
 
 extension EnvironmentValues {

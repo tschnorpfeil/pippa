@@ -343,6 +343,7 @@ final class Island: ObservableObject {
     /// "Open Pippa" (⌘↩), "Set up my AI", or a click on "Your answer is ready".
     func openChat() {
         close()
+        ProactivityCoordinator.shared.dismissDesk()
         ChatWindow.shared.show()
     }
 

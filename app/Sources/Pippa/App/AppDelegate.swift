@@ -246,6 +246,7 @@ enum MenuAction {
     /// "New Conversation", in the menu bar symbol's menu and the File menu.
     static func newConversation(key: String = "", modifiers: NSEvent.ModifierFlags = []) -> NSMenuItem {
         item(T("New Conversation", table: "App"), key: key, modifiers: modifiers) {
+            ProactivityCoordinator.shared.dismissDesk()
             ChatModel.shared.newConversation()
             ChatWindow.shared.show()
         }

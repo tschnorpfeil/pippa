@@ -90,7 +90,7 @@ struct ProactiveDeskView: View {
         HStack(spacing: Space.s) {
             if settings.enabled {
                 GhostButton(title: T("Pause", table: "Views"), symbol: "pause") { coordinator.setEnabled(false) }
-            } else if !coordinator.routines.isEmpty {
+            } else if coordinator.hasSavedRoutines || !coordinator.routines.isEmpty {
                 GhostButton(title: T("Resume", table: "Views"), symbol: "play") { coordinator.setEnabled(true) }
             }
             ActionPill(title: T("New Routine…", table: "Views"), primary: true) { openEditor(.blank) }
@@ -155,7 +155,12 @@ struct ProactiveDeskView: View {
     }
 
     private func add(_ draft: ParsedRoutineDraft?) {
-        guard draft != nil else { return }
+        guard let draft else { return }
+        // A folder-watch sentence still needs a folder chosen by the person: open the editor prefilled instead of saving an empty path.
+        if case .folder(let path, _) = draft.trigger, path.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            openEditor(.fromText(query))
+            return
+        }
         if coordinator.createRoutineFromText(query) != nil {
             withAnimation(Theme.leave) { queryState.wrappedValue = "" }
         }

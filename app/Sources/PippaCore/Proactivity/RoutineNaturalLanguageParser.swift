@@ -458,8 +458,20 @@ public enum RoutineNaturalLanguageParser {
         var groups: [String?]
     }
 
+    private static let regexLock = NSLock()
+    private nonisolated(unsafe) static var regexCache: [String: NSRegularExpression] = [:]
+
+    private static func cachedRegex(_ pattern: String) -> NSRegularExpression? {
+        regexLock.withLock {
+            if let existing = regexCache[pattern] { return existing }
+            guard let compiled = try? NSRegularExpression(pattern: pattern, options: [.caseInsensitive]) else { return nil }
+            regexCache[pattern] = compiled
+            return compiled
+        }
+    }
+
     private static func firstMatch(_ pattern: String, in text: String) -> RegexMatch? {
-        guard let regex = try? NSRegularExpression(pattern: pattern, options: [.caseInsensitive]) else { return nil }
+        guard let regex = cachedRegex(pattern) else { return nil }
         let ns = NSRange(text.startIndex..., in: text)
         guard let result = regex.firstMatch(in: text, range: ns), let range = Range(result.range, in: text) else { return nil }
         var groups: [String?] = []

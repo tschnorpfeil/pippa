@@ -107,7 +107,6 @@
 "Off" = "Off";
 "Off — turn on a routine below to start" = "Off — turn on a routine below to start";
 "On" = "On";
-"On a schedule" = "On a schedule";
 "Once" = "Once";
 "Only when something is new" = "Only when something is new";
 "Open" = "Open";
@@ -165,14 +164,12 @@
 "Weekdays" = "Weekdays";
 "Weekly Review" = "Weekly Review";
 "What" = "What";
-"What happens" = "What happens";
 "What should Pippa check or prepare?" = "What should Pippa check or prepare?";
 "What’s on tomorrow and what is still open today." = "What’s on tomorrow and what is still open today.";
 "When" = "When";
 "When appointments change" = "When appointments change";
 "When new files arrive" = "When new files arrive";
 "When reminders come due" = "When reminders come due";
-"When something happens" = "When something happens";
 "When you choose" = "When you choose";
 "Where" = "Where";
 "Your day at a glance: appointments, due reminders and open items." = "Your day at a glance: appointments, due reminders and open items.";

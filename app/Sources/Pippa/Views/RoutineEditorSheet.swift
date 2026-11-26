@@ -51,6 +51,7 @@ struct RoutineEditorSheet: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
             .scrollBounceBehavior(.basedOnSize)
+            Divider()
             preview
             Divider()
             footer
@@ -123,13 +124,6 @@ struct RoutineEditorSheet: View {
 
     private var whenSection: some View {
         SettingsSection(title: T("When", table: "Views")) {
-            Picker(T("When", table: "Views"), selection: binding.reactive) {
-                Text(T("On a schedule", table: "Views")).tag(false)
-                Text(T("When something happens", table: "Views")).tag(true)
-            }
-            .pickerStyle(.segmented).labelsHidden()
-            .settingsBlock()
-            SettingsDivider()
             if form.reactive { reactiveRows } else { scheduleRows }
         }
     }
@@ -166,8 +160,15 @@ struct RoutineEditorSheet: View {
         case .once:
             SettingsDivider()
             SettingsRow(title: T("On", table: "Views")) {
-                DatePicker(T("On", table: "Views"), selection: binding.onceDate, in: Date()..., displayedComponents: [.date, .hourAndMinute])
-                    .labelsHidden().datePickerStyle(.field)
+                if !isEditing || form.onceDate >= Date() {
+                    DatePicker(T("On", table: "Views"), selection: binding.onceDate, in: Date()..., displayedComponents: [.date, .hourAndMinute])
+                        .labelsHidden().datePickerStyle(.field)
+                        .environment(\.locale, RoutineUI.locale)
+                } else {
+                    DatePicker(T("On", table: "Views"), selection: binding.onceDate, displayedComponents: [.date, .hourAndMinute])
+                        .labelsHidden().datePickerStyle(.field)
+                        .environment(\.locale, RoutineUI.locale)
+                }
             }
         case .daily, .weekdays:
             EmptyView()
@@ -192,7 +193,11 @@ struct RoutineEditorSheet: View {
             ForEach(order, id: \.self) { day in
                 let on = form.weekdays.contains(day)
                 Button {
-                    if on { binding.wrappedValue.weekdays.remove(day) } else { binding.wrappedValue.weekdays.insert(day) }
+                    if on {
+                        if binding.wrappedValue.weekdays.count > 1 { binding.wrappedValue.weekdays.remove(day) }
+                    } else {
+                        binding.wrappedValue.weekdays.insert(day)
+                    }
                 } label: {
                     Text(names[day - 1].trimmingCharacters(in: CharacterSet(charactersIn: ".")))
                         .font(Typo.footnote.weight(.medium))
@@ -210,12 +215,7 @@ struct RoutineEditorSheet: View {
     }
 
     @ViewBuilder private var reactiveRows: some View {
-        SettingsRow(title: T("What happens", table: "Views")) {
-            Picker(T("What happens", table: "Views"), selection: binding.event) {
-                ForEach(RoutineForm.Event.allCases, id: \.self) { event in Text(event.label).tag(event) }
-            }
-            .labelsHidden().fixedSize()
-        }
+        SettingsRow(title: form.event.label) { EmptyView() }
         SettingsDivider()
         switch form.event {
         case .folder:
@@ -485,6 +485,7 @@ struct RoutineForm {
     var canSave: Bool {
         guard !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return false }
         if reactive && event == .folder && folderPath.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { return false }
+        if !reactive && cadence == .specificDays && weekdays.isEmpty { return false }
         return true
     }
 

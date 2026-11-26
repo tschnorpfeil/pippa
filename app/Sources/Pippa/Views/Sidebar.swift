@@ -61,7 +61,7 @@ struct Sidebar: View {
         .searchable(text: search, placement: .sidebar, prompt: T("Search", table: "App"))
         .overlay {
             // Before the saved conversations are read, the list is just empty for a moment, not "nothing here".
-            if groups.isEmpty && chat.isLoaded { emptyState.padding(.top, 44) }
+            if groups.isEmpty && chat.isLoaded { emptyState.padding(.top, 80) }
         }
         .toolbar {
             ToolbarItem {

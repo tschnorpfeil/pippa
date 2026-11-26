@@ -107,7 +107,6 @@
 "Off" = "Aus";
 "Off — turn on a routine below to start" = "Aus – schalte unten eine Routine ein, um zu beginnen";
 "On" = "An";
-"On a schedule" = "Nach Plan";
 "Once" = "Einmal";
 "Only when something is new" = "Nur wenn es etwas Neues gibt";
 "Open" = "Öffnen";
@@ -165,14 +164,12 @@
 "Weekdays" = "Werktags";
 "Weekly Review" = "Wochenüberblick";
 "What" = "Was";
-"What happens" = "Was passiert";
 "What should Pippa check or prepare?" = "Was soll Pippa prüfen oder vorbereiten?";
 "What’s on tomorrow and what is still open today." = "Was morgen ansteht und was heute noch offen ist.";
 "When" = "Wann";
 "When appointments change" = "Wenn sich Termine ändern";
 "When new files arrive" = "Wenn neue Dateien kommen";
 "When reminders come due" = "Wenn Erinnerungen fällig werden";
-"When something happens" = "Wenn etwas passiert";
 "When you choose" = "Wann du willst";
 "Where" = "Wo";
 "Your day at a glance: appointments, due reminders and open items." = "Dein Tag auf einen Blick: Termine, fällige Erinnerungen und Offenes.";

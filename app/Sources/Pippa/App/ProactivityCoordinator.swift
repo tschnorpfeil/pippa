@@ -59,6 +59,10 @@ final class ProactivityCoordinator: ObservableObject {
     @Published private(set) var suggestedTemplates: [ProactiveRoutineTemplate] = []
     /// Set `true` by `openDesk()`, consumed by `ChatView` to switch to the "For You" Desk.
     @Published var openDeskRequested: Bool = false
+    /// Incremented whenever any flow explicitly opens the chat (⌘N, Open in Chat, Island, file drop) so `ChatView` leaves "For You".
+    @Published private(set) var openChatToken: UInt64 = 0
+    /// True when saved routines exist on disk (checked via file presence without opening SQLite while OFF) so Pause can Resume.
+    @Published private(set) var hasSavedRoutines: Bool = false
 
     // MARK: Private State
 
@@ -124,6 +128,7 @@ final class ProactivityCoordinator: ObservableObject {
 
     private init() {
         settings = PippaSettings.load(from: PiSession.settingsDirectory).effectiveProactivity
+        hasSavedRoutines = Self.routinesDatabaseExists()
         suggestedTemplates = computeSuggestedTemplates()
     }
 
@@ -166,7 +171,8 @@ final class ProactivityCoordinator: ObservableObject {
         deliveredTodayCount: Int = 0,
         isFocusActiveNow: Bool = false,
         nextScheduledSummary: String? = nil,
-        suggestedTemplates: [ProactiveRoutineTemplate]? = nil
+        suggestedTemplates: [ProactiveRoutineTemplate]? = nil,
+        hasSavedRoutines: Bool = false
     ) {
         isSnapshotMode = true
         stopWatching()
@@ -183,6 +189,7 @@ final class ProactivityCoordinator: ObservableObject {
         self.isFocusActiveNow = isFocusActiveNow
         self.nextScheduledSummary = nextScheduledSummary
         self.suggestedTemplates = suggestedTemplates ?? computeSuggestedTemplates()
+        self.hasSavedRoutines = hasSavedRoutines || !routines.isEmpty
     }
 
     // MARK: Navigation
@@ -192,6 +199,12 @@ final class ProactivityCoordinator: ObservableObject {
         Island.shared.close()
         ChatWindow.shared.show()
         openDeskRequested = true
+    }
+
+    /// Signals `ChatView` to leave "For You" and show the chat (e.g. ⌘N, Open in Chat, Island, file drop).
+    func dismissDesk() {
+        openDeskRequested = false
+        openChatToken &+= 1
     }
 
     // MARK: Settings (backward compatible + new controls)
@@ -310,6 +323,7 @@ final class ProactivityCoordinator: ObservableObject {
             isFocusActiveNow = false
             nextScheduledSummary = nil
             nextUpcomingMeetingLead = nil
+            hasSavedRoutines = Self.routinesDatabaseExists()
             suggestedTemplates = computeSuggestedTemplates()
             return
         }
@@ -458,6 +472,11 @@ final class ProactivityCoordinator: ObservableObject {
         guard let draft = RoutineNaturalLanguageParser.parse(text, now: now, language: Self.language) else {
             return nil
         }
+        var trigger = draft.trigger
+        if case .folder(let path, _) = trigger, path.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            guard let picked = chooseFolderForRoutine() else { return nil }
+            trigger = .folder(path: picked.path, bookmark: picked.bookmark)
+        }
         let executionMode: RoutineExecutionMode
         switch draft.template {
         case .morningBrief, .eveningPreview, .weeklyReview, .folderWatch, .calendarRadar, .meetingPrep, .reminderRadar:
@@ -473,7 +492,7 @@ final class ProactivityCoordinator: ObservableObject {
             deliveryMode = .islandAndDesk
         }
         let nextRun: Date?
-        if case .schedule(let schedule) = draft.trigger {
+        if case .schedule(let schedule) = trigger {
             nextRun = ProactiveScheduleCalculator.nextFireDate(for: schedule, after: now)
         } else {
             nextRun = nil
@@ -482,7 +501,7 @@ final class ProactivityCoordinator: ObservableObject {
             title: draft.title,
             instruction: draft.instruction,
             template: draft.template,
-            trigger: draft.trigger,
+            trigger: trigger,
             executionMode: executionMode,
             deliveryMode: deliveryMode,
             enabled: true,
@@ -1768,6 +1787,7 @@ final class ProactivityCoordinator: ObservableObject {
     /// resolved via `PersonAction`, and optionally auto-sends if requested and Pippa is ready.
     func openInChat(_ matter: ProactiveMatter, autoSend: Bool = false, surface: PersonAction.Surface = .island) {
         Island.shared.close()
+        dismissDesk()
         let chat = ChatModel.shared
         chat.newConversation()
         ChatWindow.shared.show()
@@ -1862,6 +1882,7 @@ final class ProactivityCoordinator: ObservableObject {
         if let rStore = await ensureRoutineStore() {
             routines = (try? await rStore.allRoutines()) ?? []
             recentRuns = (try? await rStore.recentRuns(limit: Self.recentRunsLimit)) ?? []
+            hasSavedRoutines = !routines.isEmpty || Self.routinesDatabaseExists()
         }
 
         isFocusActiveNow = focusReader.currentStatus().isFocusActive
@@ -2109,6 +2130,13 @@ final class ProactivityCoordinator: ObservableObject {
 
     private static func sha256(_ text: String) -> String {
         SHA256.hash(data: Data(text.utf8)).map { String(format: "%02x", $0) }.joined()
+    }
+
+    private static func routinesDatabaseExists() -> Bool {
+        let url = PiSession.settingsDirectory
+            .appendingPathComponent("Proactivity", isDirectory: true)
+            .appendingPathComponent("routines.sqlite")
+        return FileManager.default.fileExists(atPath: url.path)
     }
 
     /// The language Pippa's UI runs in, for briefs, file triage, and dynamic pulse summaries.
