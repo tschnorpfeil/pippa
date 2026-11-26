@@ -396,7 +396,8 @@ public enum UpcomingMeetingPrepBuilder {
         let lead = TimeInterval(min(max(leadMinutes, ProactiveTrigger.meetingLeadRange.lowerBound), ProactiveTrigger.meetingLeadRange.upperBound) * 60)
         return events
             .filter { !$0.allDay && $0.status == .confirmed && !$0.declined && $0.start > now }
-            .map { max(now, $0.start.addingTimeInterval(-lead)) }
+            .map { $0.start.addingTimeInterval(-lead) }
+            .filter { $0 > now }
             .min()
     }
 

@@ -275,6 +275,9 @@ public func runRoutineChecks() async {
                                                           now: target.addingTimeInterval(120), calendar: cal)
         let ranAlready = ProactiveScheduleCalculator.evaluateDue(schedule: .once(at: target), lastSlotKey: due?.slotKey, lastRunAt: target,
                                                                  createdAt: created, now: target.addingTimeInterval(600), calendar: cal)
+        let rescheduledTarget = at(2026, 11, 27, 15, 0, cal)
+        let rescheduledOnce = ProactiveScheduleCalculator.evaluateDue(schedule: .once(at: rescheduledTarget), lastSlotKey: due?.slotKey, lastRunAt: target,
+                                                                      createdAt: created, now: rescheduledTarget.addingTimeInterval(60), calendar: cal)
         let tooOld = ProactiveScheduleCalculator.evaluateDue(schedule: .once(at: target), lastSlotKey: nil, lastRunAt: nil, createdAt: created,
                                                              now: target.addingTimeInterval(25 * 3600), calendar: cal)
         let intervalWait = ProactiveScheduleCalculator.evaluateDue(schedule: .interval(minutes: 30), lastSlotKey: nil, lastRunAt: nil,
@@ -285,7 +288,8 @@ public func runRoutineChecks() async {
                                                                          lastRunAt: created, createdAt: created,
                                                                          now: created.addingTimeInterval(3 * 86_400), calendar: cal)
         return early == nil && due?.disableAfterFire == true && due?.slotKey == "2026-11-26-1400" && due?.nextFireDate == nil
-            && ranAlready == nil && tooOld == nil && intervalWait == nil
+            && ranAlready == nil && rescheduledOnce?.slotKey == "2026-11-27-1500" && rescheduledOnce?.disableAfterFire == true
+            && tooOld == nil && intervalWait == nil
             && intervalDue?.nextFireDate == created.addingTimeInterval(60 * 60)
             && intervalAfterSleep?.slotDate == created.addingTimeInterval(3 * 86_400)
     }
@@ -642,13 +646,15 @@ public func runRoutineChecks() async {
                                                         now: now, leadMinutes: 30, calendar: cal, language: "de")
         let repeatSame = UpcomingMeetingPrepBuilder.evaluate(events: events, reminders: reminders, previousSnapshotJSON: first.nextSnapshotJSON,
                                                              now: now.addingTimeInterval(300), leadMinutes: 30, calendar: cal, language: "de")
-        let nextLead = UpcomingMeetingPrepBuilder.nextLeadDate(events: [events[3]], now: now, leadMinutes: 30)
+        // Even when events[0] (14:00) is already inside the 30 min lead window at 13:40, nextLeadDate picks the next future lead (15:30).
+        let nextLead = UpcomingMeetingPrepBuilder.nextLeadDate(events: events, now: now, leadMinutes: 30)
+        let noFutureLead = UpcomingMeetingPrepBuilder.nextLeadDate(events: [events[0]], now: now, leadMinutes: 30)
         guard let draft = first.draft else { return false }
         return draft.kind == .routine && draft.title == "In 20 Min: Steuerberater Termin"
             && draft.summary.contains("14:00–14:45 · Kanzlei Mitte")
             && draft.summary.contains("Offene Erinnerung: Belege für Steuerberater einpacken")
             && !draft.preparedPrompt.contains("Steuerberater")
-            && repeatSame.draft == nil && nextLead == at(2026, 11, 26, 15, 30, cal)
+            && repeatSame.draft == nil && nextLead == at(2026, 11, 26, 15, 30, cal) && noFutureLead == nil
     }
 
     check("Routines: AI output parser accepts only the strict schema and stays quiet otherwise") {

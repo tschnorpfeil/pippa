@@ -299,6 +299,8 @@ final class ProactivityCoordinator: ObservableObject {
             || (!previous.morningBriefEnabled && next.morningBriefEnabled)
             || (previous.morningBriefHour != next.morningBriefHour)
             || (previous.quietHoursEnabled && !next.quietHoursEnabled)
+            || (previous.quietStartHour != next.quietStartHour)
+            || (previous.quietEndHour != next.quietEndHour)
             || (next.dailyCap > previous.dailyCap)
         settings = next
         if !isSnapshotMode { save() }
@@ -406,7 +408,8 @@ final class ProactivityCoordinator: ObservableObject {
                 DiagnosticsLog.shared.event("proaktiv-routine-fehler", [:])
                 return
             }
-            self.syncLegacySettings(from: routine)
+            let allAfterActivate = (try? await store.allRoutines()) ?? []
+            self.syncLegacySettings(from: routine, allRoutines: allAfterActivate)
             await self.refreshPublishedState()
             self.syncWatchersAndTimers()
 
@@ -451,7 +454,8 @@ final class ProactivityCoordinator: ObservableObject {
                 DiagnosticsLog.shared.event("proaktiv-routine-fehler", [:])
                 return
             }
-            self.syncLegacySettings(from: prepared)
+            let allAfterCreate = (try? await store.allRoutines()) ?? []
+            self.syncLegacySettings(from: prepared, allRoutines: allAfterCreate)
             await self.refreshPublishedState()
             self.syncWatchersAndTimers()
             if prepared.enabled {
@@ -531,13 +535,18 @@ final class ProactivityCoordinator: ObservableObject {
         }
         trackTask { [weak self] in
             guard let self, let store = await self.ensureRoutineStore() else { return }
+            let previous = (try? await store.routine(id: updated.id)) ?? nil
+            if previous?.trigger != updated.trigger {
+                updated.lastSlotKey = nil
+            }
             do {
                 try await store.upsert(updated)
             } catch {
                 DiagnosticsLog.shared.event("proaktiv-routine-fehler", [:])
                 return
             }
-            self.syncLegacySettings(from: updated)
+            let allAfterUpdate = (try? await store.allRoutines()) ?? []
+            self.syncLegacySettings(from: updated, allRoutines: allAfterUpdate)
             if !updated.enabled, let nudge = self.activeNudge, self.resolveOwner(for: nudge, in: [updated]) != nil {
                 self.activeNudge = nil
             }
@@ -568,7 +577,8 @@ final class ProactivityCoordinator: ObservableObject {
                     toggled.nextRunAt = nil
                     try await store.upsert(toggled)
                 }
-                self.syncLegacySettings(from: toggled)
+                let allAfterToggle = (try? await store.allRoutines()) ?? []
+                self.syncLegacySettings(from: toggled, allRoutines: allAfterToggle)
                 if !enabled, let nudge = self.activeNudge, self.resolveOwner(for: nudge, in: [toggled]) != nil {
                     self.activeNudge = nil
                 }
@@ -606,7 +616,8 @@ final class ProactivityCoordinator: ObservableObject {
                 return
             }
             if let existing {
-                self.syncLegacySettings(from: existing, deleted: true)
+                let allAfterDelete = (try? await store.allRoutines()) ?? []
+                self.syncLegacySettings(from: existing, deleted: true, allRoutines: allAfterDelete)
             }
             await self.refreshPublishedState()
             self.syncWatchersAndTimers()
@@ -686,13 +697,15 @@ final class ProactivityCoordinator: ObservableObject {
         }
     }
 
-    private func syncLegacySettings(from routine: ProactiveRoutine, deleted: Bool = false) {
+    private func syncLegacySettings(from routine: ProactiveRoutine, deleted: Bool = false, allRoutines: [ProactiveRoutine]? = nil) {
         var next = settings
-        if routine.builtInKey == ProactiveRoutine.morningBriefKey {
-            if deleted {
-                next.morningBriefEnabled = false
+        if routine.template == .morningBrief {
+            if let allRoutines {
+                next.morningBriefEnabled = allRoutines.contains { $0.template == .morningBrief && $0.enabled }
             } else {
-                next.morningBriefEnabled = routine.enabled
+                next.morningBriefEnabled = !deleted && routine.enabled
+            }
+            if routine.builtInKey == ProactiveRoutine.morningBriefKey && !deleted {
                 if case .schedule(let schedule) = routine.trigger {
                     switch schedule {
                     case .daily(let h, let m), .weekdays(let h, let m), .weekly(_, let h, let m):
@@ -887,9 +900,12 @@ final class ProactivityCoordinator: ObservableObject {
                 Self.resolveFolderOffMain(bookmark: bookmark, fallbackPath: path)
             }.value
             guard !Task.isCancelled, let self,
-                  let current = self.folderWatchers[routineID], current === state, current.generation == gen,
-                  self.settings.enabled, !self.settings.isMuted(.watchedFile), let url = resolved
+                  let current = self.folderWatchers[routineID], current === state, current.generation == gen
             else { return }
+            guard self.settings.enabled, !self.settings.isMuted(.watchedFile), let url = resolved else {
+                self.folderWatchers.removeValue(forKey: routineID)
+                return
+            }
             self.attachFolderSource(url: url, state: current)
         }
     }
@@ -899,6 +915,9 @@ final class ProactivityCoordinator: ObservableObject {
         let descriptor = open(url.path, O_EVTONLY)
         guard descriptor >= 0 else {
             if accessed { url.stopAccessingSecurityScopedResource() }
+            if folderWatchers[state.routineID] === state {
+                folderWatchers.removeValue(forKey: state.routineID)
+            }
             DiagnosticsLog.shared.event("proaktiv-ordner-fehler", [:])
             return
         }
@@ -1355,6 +1374,32 @@ final class ProactivityCoordinator: ObservableObject {
             if !manual && settings.isMuted(.morningBrief) {
                 outcome = .skipped
                 recordRunIfSilent = false
+            } else if manual || routine.builtInKey == nil {
+                // Bypass the once-per-day DurableJobStore short-circuit for manual runs and user-created
+                // Morning Brief routines so newly added events surface and `sourceRef` carries the owning UUID.
+                let input = await briefInput(day: now, store: matterStore)
+                if let content = MorningBriefBuilder.format(input) {
+                    let draft = ProactiveMatterDraft(
+                        kind: .morningBrief,
+                        matterKey: MorningBriefBuilder.matterKey(for: content.dayKey),
+                        sourceRef: "routine:\(routine.id.uuidString)",
+                        sourceVersion: content.sourceVersion,
+                        title: content.title,
+                        summary: content.summary,
+                        preparedPrompt: content.preparedPrompt,
+                        preparedFiles: []
+                    )
+                    inputHash = content.sourceVersion
+                    if let matter = await upsertDraft(draft, into: matterStore, now: now) {
+                        outcome = .prepared
+                        preparedMatterID = matter.id
+                        detail = matter.title
+                    } else {
+                        outcome = .silent
+                    }
+                } else {
+                    outcome = .silent
+                }
             } else if let matter = await buildBrief(day: now, store: matterStore) {
                 outcome = .prepared
                 preparedMatterID = matter.id
@@ -1373,7 +1418,7 @@ final class ProactivityCoordinator: ObservableObject {
                 inputHash = draft.sourceVersion
                 if !manual && routine.onlyWhenNew && draft.sourceVersion == routine.lastInputHash {
                     outcome = .silent
-                } else if let matter = await upsertDraft(draft, into: matterStore, now: now) {
+                } else if let matter = await upsertDraft(ownedDraft(draft, for: routine), into: matterStore, now: now) {
                     outcome = .prepared
                     preparedMatterID = matter.id
                     detail = matter.title
@@ -1389,7 +1434,7 @@ final class ProactivityCoordinator: ObservableObject {
                 inputHash = draft.sourceVersion
                 if !manual && routine.onlyWhenNew && draft.sourceVersion == routine.lastInputHash {
                     outcome = .silent
-                } else if let matter = await upsertDraft(draft, into: matterStore, now: now) {
+                } else if let matter = await upsertDraft(ownedDraft(draft, for: routine), into: matterStore, now: now) {
                     outcome = .prepared
                     preparedMatterID = matter.id
                     detail = matter.title
@@ -1419,7 +1464,7 @@ final class ProactivityCoordinator: ObservableObject {
             if let draft = eval.draft {
                 if !manual && routine.onlyWhenNew && eval.inputHash == routine.lastInputHash {
                     outcome = .silent
-                } else if let matter = await upsertDraft(draft, into: matterStore, now: now) {
+                } else if let matter = await upsertDraft(ownedDraft(draft, for: routine), into: matterStore, now: now) {
                     outcome = .prepared
                     preparedMatterID = matter.id
                     detail = matter.title
@@ -1435,34 +1480,41 @@ final class ProactivityCoordinator: ObservableObject {
             }
             let windowEnd = now.addingTimeInterval(24 * 3600)
             let events = await readCalendarEvents(in: DateInterval(start: now, end: windowEnd))
-            if let nextLead = UpcomingMeetingPrepBuilder.nextLeadDate(events: events, now: now, leadMinutes: leadMinutes),
-               nextLead > now {
-                if nextUpcomingMeetingLead == nil || nextLead < nextUpcomingMeetingLead!.date {
+            if let nextLead = UpcomingMeetingPrepBuilder.nextLeadDate(events: events, now: now, leadMinutes: leadMinutes) {
+                if nextUpcomingMeetingLead == nil || nextUpcomingMeetingLead!.date <= now || nextLead < nextUpcomingMeetingLead!.date {
                     nextUpcomingMeetingLead = (nextLead, routine.title)
                 }
             }
             let reminders = await readOpenReminders(dueBefore: nil, limit: 40)
             let open = ((try? await matterStore.matters(states: [.open, .offered])) ?? [])
-            let prev = (try? await routineStore.snapshot(for: routine.id)) ?? nil
-            let eval = UpcomingMeetingPrepBuilder.evaluate(
-                events: events,
-                reminders: reminders,
-                openMatters: open,
-                previousSnapshotJSON: prev,
-                now: now,
-                leadMinutes: leadMinutes,
-                calendar: calendar,
-                language: lang
-            )
-            try? await routineStore.saveSnapshot(eval.nextSnapshotJSON, for: routine.id, now: now)
-            inputHash = eval.inputHash
-            if let draft = eval.draft {
-                if let matter = await upsertDraft(draft, into: matterStore, now: now) {
+            var snapshotJSON = (try? await routineStore.snapshot(for: routine.id)) ?? nil
+            var lastHash: String?
+            for _ in 0..<8 {
+                let eval = UpcomingMeetingPrepBuilder.evaluate(
+                    events: events,
+                    reminders: reminders,
+                    openMatters: open,
+                    previousSnapshotJSON: snapshotJSON,
+                    now: now,
+                    leadMinutes: leadMinutes,
+                    calendar: calendar,
+                    language: lang
+                )
+                snapshotJSON = eval.nextSnapshotJSON
+                lastHash = eval.inputHash
+                guard let draft = eval.draft else { break }
+                if let matter = await upsertDraft(ownedDraft(draft, for: routine), into: matterStore, now: now) {
                     outcome = .prepared
-                    preparedMatterID = matter.id
-                    detail = matter.title
+                    if preparedMatterID == nil {
+                        preparedMatterID = matter.id
+                        detail = matter.title
+                    }
                 }
             }
+            if let snapshotJSON {
+                try? await routineStore.saveSnapshot(snapshotJSON, for: routine.id, now: now)
+            }
+            inputHash = lastHash
 
         case .reminderRadar:
             guard EKEventStore.authorizationStatus(for: .reminder) == .fullAccess else {
@@ -1484,7 +1536,7 @@ final class ProactivityCoordinator: ObservableObject {
             if let draft = eval.draft {
                 if !manual && routine.onlyWhenNew && eval.inputHash == routine.lastInputHash {
                     outcome = .silent
-                } else if let matter = await upsertDraft(draft, into: matterStore, now: now) {
+                } else if let matter = await upsertDraft(ownedDraft(draft, for: routine), into: matterStore, now: now) {
                     outcome = .prepared
                     preparedMatterID = matter.id
                     detail = matter.title
@@ -1594,13 +1646,15 @@ final class ProactivityCoordinator: ObservableObject {
         }
 
         guard !skipRecording, !Task.isCancelled, settings.enabled else { return }
+        // Never resurrect a routine or record an orphan run if it was deleted while executing.
+        guard var updated = (try? await routineStore.routine(id: routine.id)) ?? nil else { return }
         let finishedAt = Date()
 
         // Avoid flooding recentRuns with no-op ticks from reactive watchers when nothing changed.
         if outcome != .silent || recordRunIfSilent {
             let record = RoutineRunRecord(
                 routineID: routine.id,
-                routineTitle: routine.title,
+                routineTitle: updated.title,
                 slotKey: slotKey,
                 outcome: outcome,
                 matterID: preparedMatterID,
@@ -1613,8 +1667,9 @@ final class ProactivityCoordinator: ObservableObject {
         }
 
         // Persist updated routine metadata (slot key, hash, outcome, nextRunAt, one-off auto-disable).
-        var updated = (try? await routineStore.routine(id: routine.id)) ?? routine
-        let shouldUpdateMetadata = outcome != .silent || recordRunIfSilent || !manual || disableAfterFire || nextFireDate != updated.nextRunAt
+        let triggerUnchanged = updated.trigger == routine.trigger
+        let shouldUpdateMetadata = outcome != .silent || recordRunIfSilent || !manual
+            || (triggerUnchanged && (disableAfterFire || nextFireDate != updated.nextRunAt))
         if shouldUpdateMetadata {
             if outcome != .silent || recordRunIfSilent {
                 updated.lastRunAt = finishedAt
@@ -1622,21 +1677,37 @@ final class ProactivityCoordinator: ObservableObject {
                 if let detail { updated.lastSummary = detail }
             }
             if let inputHash { updated.lastInputHash = inputHash }
-            if !manual && !routine.isReactiveWatcher {
-                updated.lastSlotKey = slotKey
-            }
-            if disableAfterFire {
-                updated.enabled = false
-                updated.nextRunAt = nil
-            } else if let nextFireDate {
-                updated.nextRunAt = nextFireDate
+            if triggerUnchanged {
+                if !manual && !routine.isReactiveWatcher {
+                    updated.lastSlotKey = slotKey
+                }
+                if disableAfterFire {
+                    updated.enabled = false
+                    updated.nextRunAt = nil
+                } else if let nextFireDate {
+                    updated.nextRunAt = nextFireDate
+                }
             }
             updated.updatedAt = finishedAt
             try? await routineStore.upsert(updated)
-            if disableAfterFire {
-                syncLegacySettings(from: updated)
+            if triggerUnchanged && disableAfterFire {
+                let allAfterFire = (try? await routineStore.allRoutines()) ?? []
+                syncLegacySettings(from: updated, allRoutines: allAfterFire)
             }
         }
+    }
+
+    private func ownedDraft(_ draft: ProactiveMatterDraft, for routine: ProactiveRoutine) -> ProactiveMatterDraft {
+        ProactiveMatterDraft(
+            kind: draft.kind,
+            matterKey: draft.matterKey,
+            sourceRef: "routine:\(routine.id.uuidString)",
+            sourceVersion: draft.sourceVersion,
+            title: draft.title,
+            summary: draft.summary,
+            preparedPrompt: draft.preparedPrompt,
+            preparedFiles: draft.preparedFiles
+        )
     }
 
     private func upsertDraft(_ draft: ProactiveMatterDraft, into store: ProactiveMatterStore, now: Date) async -> ProactiveMatter? {
@@ -1824,11 +1895,7 @@ final class ProactivityCoordinator: ObservableObject {
     }
 
     func muteKind(_ kind: ProactiveMatterKind, dismissing matter: ProactiveMatter, surface: PersonAction.Surface = .island) {
-        var next = settings
-        next.mute(kind)
-        settings = next
-        if !isSnapshotMode { save() }
-        if kind == .watchedFile { stopAllFolderWatchers() }
+        update { $0.mute(kind) }
         apply(.dismiss(surface: surface), to: matter)
     }
 

@@ -72,8 +72,9 @@ public enum ProactiveScheduleCalculator {
         let window = max(catchUpWindow, 0)
         switch schedule.normalized {
         case .once(let at):
-            guard at <= now, lastSlotKey == nil, now.timeIntervalSince(at) <= max(window, 24 * 3600) else { return nil }
-            return DueEvaluation(slotDate: at, slotKey: slotKey(for: at, calendar: calendar), nextFireDate: nil, disableAfterFire: true)
+            let key = slotKey(for: at, calendar: calendar)
+            guard at <= now, key != lastSlotKey, now.timeIntervalSince(at) <= max(window, 24 * 3600) else { return nil }
+            return DueEvaluation(slotDate: at, slotKey: key, nextFireDate: nil, disableAfterFire: true)
         case .interval(let minutes):
             let interval = TimeInterval(minutes * 60)
             guard (lastRunAt ?? createdAt).addingTimeInterval(interval) <= now else { return nil }

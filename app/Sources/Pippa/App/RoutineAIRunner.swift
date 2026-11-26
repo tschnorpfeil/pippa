@@ -160,7 +160,7 @@ final class RoutineAIRunner {
             let work = PiConversationDefault.workingDirectory(support: Pippa.supportDirectory)
             try FileManager.default.createDirectory(at: work, withIntermediateDirectories: true)
 
-            var extra: [String: String] = ["PIPPA_MAX_CALLS": "16"]
+            var extra: [String: String] = [:]
             if let agentOverride = env["PI_CODING_AGENT_DIR"] {
                 extra["PI_CODING_AGENT_DIR"] = agentOverride
             }
