@@ -135,14 +135,14 @@ public struct PippaMCPNotesTool: Sendable {
             data["modified"] = PippaMCPTools.dateLabel(modified, time: true, calendar: calendar)
         }
         return PippaMCPTools.bounded(source: "Notes on this Mac", data: data,
-                                     next: "Use only what the note says; it may be cut (textTruncated). Name the note by its title.")
+                                     next: "Use only what the note says; it may be cut (textTruncated). Name the note by its title.", structured: true)
     }
 
     private func list(query: String?, limit: Int) async throws -> PippaMCPToolResult {
         let fetched = try await reader.listNotes(query: query, limit: limit)
         var items: [[String: Any]] = []
         var usedBytes = 0
-        let budget = PippaMCPTools.maxResultBytes - 1400
+        let budget = PippaMCPTools.structuredMaxResultBytes - 1400
         for note in fetched.notes {
             var entry: [String: Any] = [
                 "id": note.id,
@@ -167,7 +167,7 @@ public struct PippaMCPNotesTool: Sendable {
         if fetched.skippedLocked > 0 { data["skippedLocked"] = fetched.skippedLocked }
         let lockedHint = fetched.skippedLocked > 0 ? " Password-protected notes were skipped (skippedLocked)." : ""
         return PippaMCPTools.bounded(source: "Notes on this Mac", data: data,
-                                     next: "Use notes_read with id to read a note's full plaintext.\(lockedHint)")
+                                     next: "Use notes_read with id to read a note's full plaintext.\(lockedHint)", structured: true)
     }
 
     private static func blocked(_ status: String, _ tell: String, repair: PermissionRepairTarget? = nil) -> PippaMCPToolResult {

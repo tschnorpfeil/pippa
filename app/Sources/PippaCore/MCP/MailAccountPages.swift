@@ -292,7 +292,9 @@ public final class MailPageStore: @unchecked Sendable {
     private var owner: UUID?
     private var limit = MailPageStore.rowsPerAnswer
     private var snapshots: [String: MailSnapshot] = [:]
-    private var cursors: [String: (snapshot: String, offset: Int)] = [:]
+    /// `owed`/`gone`: rows a page gave only to `structuredContent` beyond its text, charged when that cursor is taken;
+    /// `pair`: the page's other cursor (text and structured pages end at different rows), taken away with this one.
+    private var cursors: [String: (snapshot: String, offset: Int, owed: Int, gone: Int, pair: String?)] = [:]
     private var refs: [String: MailRef] = [:]
     /// `mail_move` dry runs of this answer, each usable once (MailMove.swift).
     private var plans: [String: MailMovePlan] = [:]
@@ -329,15 +331,20 @@ public final class MailPageStore: @unchecked Sendable {
     func save(_ snapshot: MailSnapshot, turn: UUID?) -> Bool { owned(turn) { snapshots[snapshot.id] = snapshot; return true } ?? false }
 
     /// Takes the cursor: it works once, so a repeated or parallel use reads nothing. `restore` gives it back when its page fails.
+    /// Continuing after a page's structured rows charges those rows now, so a script stays within the same budget.
     func takeCursor(_ token: String, turn: UUID?) -> (snapshot: MailSnapshot, offset: Int)? {
         owned(turn) { () -> (snapshot: MailSnapshot, offset: Int)? in
-            guard let c = cursors.removeValue(forKey: token), let snapshot = snapshots[c.snapshot] else { return nil }
+            guard let c = cursors.removeValue(forKey: token), var snapshot = snapshots[c.snapshot] else { return nil }
+            if let pair = c.pair { cursors.removeValue(forKey: pair) }
+            delivered += c.owed
+            snapshot.gone += c.gone
+            snapshots[c.snapshot] = snapshot
             return (snapshot, c.offset)
         } ?? nil
     }
 
     func restoreCursor(_ token: String, snapshot: String, offset: Int, turn: UUID?) {
-        _ = owned(turn) { cursors[token] = (snapshot, offset) }
+        _ = owned(turn) { cursors[token] = (snapshot, offset, 0, 0, nil) }
     }
 
     /// Holds up to `wanted` previews for a page before it reads Mail; parallel pages never pass `rowsPerAnswer` together.
@@ -354,8 +361,9 @@ public final class MailPageStore: @unchecked Sendable {
     /// Records what a page actually delivered: only those rows count, the rest of the held previews go back; its
     /// references become valid, mails gone since the search add up, and the next cursor (when more remain) starts right
     /// after the last delivered entry. `false`: another answer owns the store, nothing was recorded.
+    /// `structured`: the cursor after the rows only `structuredContent` showed, when that page went further than the text.
     func settle(snapshot: String, held: Int, rows: Int, refs new: [String: MailRef], gone: Int, problems: [MailAccountInfo: MailAccountCoverage.Status], cursor: (token: String, offset: Int)?,
-                turn: UUID?, live: () -> Bool) -> Bool {
+                structured: (token: String, offset: Int, owed: Int, gone: Int)? = nil, turn: UUID?, live: () -> Bool) -> Bool {
         owned(turn) {
             guard live() else { return false }
             reserved = max(0, reserved - held)
@@ -368,7 +376,8 @@ public final class MailPageStore: @unchecked Sendable {
                 }
                 snapshots[snapshot] = updated
             }
-            if let cursor { cursors[cursor.token] = (snapshot, cursor.offset) }
+            if let cursor { cursors[cursor.token] = (snapshot, cursor.offset, 0, 0, structured?.token) }
+            if let structured { cursors[structured.token] = (snapshot, structured.offset, structured.owed, structured.gone, cursor?.token) }
             return true
         } ?? false
     }

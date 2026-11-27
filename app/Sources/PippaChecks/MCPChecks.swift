@@ -76,6 +76,17 @@ struct MCPCheckContext {
         let json = (try? JSONSerialization.jsonObject(with: Data(text.utf8)) as? [String: Any]) ?? [:]
         return (json, result["isError"] as? Bool ?? true, text.utf8.count)
     }
+    /// tools/call → the text reply as `call` gives it, plus the result's `structuredContent` and its encoded size.
+    func structuredCall(_ tools: PippaMCPTools, _ name: String, _ arguments: [String: Any] = [:])
+        async -> (reply: (json: [String: Any], isError: Bool, bytes: Int), structured: [String: Any]?, structuredBytes: Int) {
+        let reply = await handleReader(tools, name, arguments).flatMap { try? JSONSerialization.jsonObject(with: $0) as? [String: Any] }
+        let result = reply?["result"] as? [String: Any] ?? [:]
+        let text = ((result["content"] as? [[String: Any]])?.first?["text"] as? String) ?? ""
+        let json = (try? JSONSerialization.jsonObject(with: Data(text.utf8)) as? [String: Any]) ?? [:]
+        let structured = result["structuredContent"] as? [String: Any]
+        let bytes = structured.flatMap { try? JSONSerialization.data(withJSONObject: $0, options: [.sortedKeys, .withoutEscapingSlashes]).count } ?? 0
+        return ((json, result["isError"] as? Bool ?? true, text.utf8.count), structured, bytes)
+    }
     func eventList(_ json: [String: Any]) -> [[String: Any]] {
         let days = (json["data"] as? [String: Any])?["days"] as? [[String: Any]] ?? []
         return days.flatMap { $0["events"] as? [[String: Any]] ?? [] }
@@ -94,10 +105,73 @@ func runMCPChecks() async {
     await context.protocolChecks()
     await context.calendarChecks()
     await context.reminderChecks()
+    await context.structuredReaderChecks()
     await context.calendarAddChecks()
     await context.mailChecks()
     await context.photoChecks()
     await context.excelChecks()
     await context.frontChecks()
     await context.serverChecks()
+}
+
+extension MCPCheckContext {
+    /// `structuredContent` of calendar_read and reminders_read: the text stays under 8 KB, the structured result keeps
+    /// whole entries with their details up to `structuredMaxResultBytes`, cut at entry boundaries; errors carry none.
+    func structuredReaderChecks() async {
+        func rich(_ count: Int) -> [CalendarEvent] {
+            (0..<count).map { i in
+                CalendarEvent(id: "s\(i)", title: "Termin \(i) (Beispiel)", start: at(7, 10).addingTimeInterval(Double(i) * 60),
+                              end: at(7, 10).addingTimeInterval(Double(i) * 60 + 1800), calendar: "Arbeit",
+                              organizer: "Erika Beispiel", attendees: (0..<8).map { CalendarEvent.Attendee(name: "Person \($0) Beispiel", status: .accepted) },
+                              url: "https://meet.example.invalid/\(i)", notes: "Agenda \(i): " + String(repeating: "Punkt ", count: 40))
+            }
+        }
+        await checkAsync("MCP structuredContent: calendar_read keeps every event with its details beyond the 8 KB text") {
+            let r = await structuredCall(setup(events: rich(40)).tools, "calendar_read", ["period": "today"])
+            let textData = r.reply.json["data"] as? [String: Any] ?? [:]
+            let events = eventList(r.structured ?? [:])
+            let data = r.structured?["data"] as? [String: Any] ?? [:]
+            return !r.reply.isError && r.reply.bytes <= PippaMCPTools.maxResultBytes && textData["detailsOmitted"] as? Bool == true
+                && r.structuredBytes > PippaMCPTools.maxResultBytes && r.structuredBytes <= PippaMCPTools.structuredMaxResultBytes
+                && events.count == 40 && events.allSatisfy { $0["notes"] != nil && $0["attendees"] != nil && $0["url"] != nil }
+                && data["detailsOmitted"] == nil && data["truncated"] as? Bool != true
+                && r.structured?["untrusted"] as? Bool == true && r.structured?["read"] as? Bool == true
+        }
+        await checkAsync("MCP structuredContent: reminders_read keeps all reminders with notes and priority beyond the 8 KB text") {
+            let demo = DemoIntegrations(granted: true)
+            let items = (0..<40).map { ReminderItem(title: String(repeating: "R", count: 150) + " \($0)", list: "Privat",
+                                                    notes: String(repeating: "Notiz \($0) ", count: 30), priority: "medium") }
+            let host = PippaMCPHost(integrations: demo, sheets: DemoSheetReader(granted: true),
+                                    hostData: DemoHostData(integrations: demo, reminders: items, now: now), now: { now }, calendar: berlin)
+            let r = await structuredCall(PippaMCPTools(host: host), "reminders_read")
+            let textData = r.reply.json["data"] as? [String: Any] ?? [:]
+            let list = (r.structured?["data"] as? [String: Any])?["reminders"] as? [[String: Any]] ?? []
+            return !r.reply.isError && r.reply.bytes <= PippaMCPTools.maxResultBytes && textData["detailsOmitted"] as? Bool == true
+                && r.structuredBytes > PippaMCPTools.maxResultBytes && r.structuredBytes <= PippaMCPTools.structuredMaxResultBytes
+                && list.count == 40 && list.allSatisfy { $0["notes"] != nil && $0["priority"] as? String == "medium" }
+        }
+        await checkAsync("MCP structuredContent: more than 128 KB is cut at whole entries and says so; errors carry none") {
+            let demo = DemoIntegrations(granted: true)
+            let huge = (0..<40).map { ReminderItem(title: "\($0) " + String(repeating: "Großer Titel ", count: 600), list: "Privat") }
+            let host = PippaMCPHost(integrations: demo, sheets: DemoSheetReader(granted: true),
+                                    hostData: DemoHostData(integrations: demo, reminders: huge, now: now), now: { now }, calendar: berlin)
+            let r = await structuredCall(PippaMCPTools(host: host), "reminders_read")
+            let data = r.structured?["data"] as? [String: Any] ?? [:]
+            let list = data["reminders"] as? [[String: Any]] ?? []
+            let failing = setup()
+            failing.demo.calendarFails = true
+            let failed = await structuredCall(failing.tools, "calendar_read", ["period": "today"])
+            let invalid = await structuredCall(setup().tools, "calendar_read", ["period": "month"])
+            let denied = setup(granted: false)
+            denied.demo.set(.reminders, .denied)
+            let no = await structuredCall(denied.tools, "reminders_read")
+            // Every reminder kept is whole: its title is exactly as long as the one Reminders has.
+            let whole = list.allSatisfy { item in huge.contains { $0.title == item["title"] as? String } }
+            return !r.reply.isError && r.reply.bytes <= PippaMCPTools.maxResultBytes
+                && r.structuredBytes > 100_000 && r.structuredBytes <= PippaMCPTools.structuredMaxResultBytes
+                && data["truncated"] as? Bool == true && list.count > 1 && list.count < 40 && data["shown"] as? Int == list.count && whole
+                && failed.reply.isError && failed.structured == nil && invalid.reply.isError && invalid.structured == nil
+                && no.reply.isError && no.structured == nil
+        }
+    }
 }
