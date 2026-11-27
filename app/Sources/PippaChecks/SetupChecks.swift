@@ -450,13 +450,6 @@ func runSetupChecks() async {
         let refused = PiInstaller(roots: badRoots).writeOnlineModelEffort(providerID: "openai", modelID: "gpt-5.5",
                                                                           supportedEfforts: ["off", "medium"])
 
-        // PiOnlineProvider.entry stays backward compatible when supportedEfforts is nil and emits effort metadata when given.
-        let connection = ModelConnection(provider: .openAI, endpoint: URL(string: "https://api.openai.com/v1"), modelID: "gpt-5.5")
-        let plainModel = (PiOnlineProvider.entry(connection)["models"] as? [[String: Any]])?.first
-        let withEfforts = (PiOnlineProvider.entry(connection, supportedEfforts: ["off", "low", "medium", "high"])["models"] as? [[String: Any]])?.first
-        let effortMap = withEfforts?["thinkingLevelMap"] as? [String: Any]
-        let nonReasoningEntry = (PiOnlineProvider.entry(connection, supportedEfforts: ["off"])["models"] as? [[String: Any]])?.first
-
         return wroteMedium && keptOverride && wroteNonReasoning && skippedNil
             && doc?["theme"] as? String == "dark"
             && levels?["openai/gpt-5.5"] == "medium"
@@ -468,11 +461,6 @@ func runSetupChecks() async {
             && !fm.fileExists(atPath: globalRoots.piSettingsJSON.path)
             && freshSkipped && !fm.fileExists(atPath: freshRoots.piSettingsJSON.path)
             && !refused && (try? String(contentsOf: badRoots.piSettingsJSON, encoding: .utf8)) == brokenJSON
-            && plainModel?["reasoning"] == nil && plainModel?["thinkingLevelMap"] == nil
-            && withEfforts?["reasoning"] as? Bool == true
-            && effortMap?["off"] as? String == "off" && effortMap?["medium"] as? String == "medium"
-            && effortMap?["minimal"] is NSNull && effortMap?["xhigh"] is NSNull && effortMap?["max"] is NSNull
-            && nonReasoningEntry?["reasoning"] == nil && nonReasoningEntry?["thinkingLevelMap"] == nil
     }
 
     check("Installer: model adopted without asking via clone, hardlink or copy into <models>/<key>/; originals stay") {

@@ -152,7 +152,8 @@ dimmed read-only `AnsweredQuestion` rows on `ChatMessage`.
 **Concurrency and follow-ups (`ChatModel`).** The composer's **One PDF** action (`PippaMCPService.makePDF`) runs in its
 own `PippaMCPTurns` alongside an active answer. Other conversations can queue one pending message while Pippa answers
 elsewhere; on dequeue, Pippa re-verifies settings, sharing rules and destination before sending. Mid-turn follow-ups
-coalesce rapid bursts (250 ms) and cancel open approval cards before injecting steering into Pi.
+coalesce rapid bursts (250 ms) and send immediately when an approval card is open, cancelling open approval cards once Pi
+accepts the follow-up.
 
 **Pippa's extensions (`runtime/pippa-tools`).**
 

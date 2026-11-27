@@ -206,6 +206,11 @@ final class Approvals: ObservableObject {
         continuation.resume(returning: response)
     }
 
+    /// Whether `conversationID` (or any conversation when `nil`) currently has an open question waiting for the person.
+    func hasOpenQuestions(in conversationID: String?) -> Bool {
+        questions.contains { conversationID == nil || $0.conversationID == conversationID }
+    }
+
     /// The person sent a follow-up into the running answer (`ChatModel.steer`): its open questions are stale, so they
     /// are cancelled (never allowed) and Pi reads the follow-up right away. Only questions of `conversationID` when given.
     func cancelForSteer(in conversationID: String?) {

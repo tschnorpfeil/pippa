@@ -36,24 +36,14 @@ public enum PiOnlineProvider {
     /// Longest response Pi requests (Anthropic requires `max_tokens`).
     public static func maxTokens(_ connection: ModelConnection) -> Int { min(8192, max(1024, connection.contextWindow / 4)) }
 
-    public static func entry(_ connection: ModelConnection, supportedEfforts: [String]? = nil) -> [String: Any] {
-        var model: [String: Any] = [
+    public static func entry(_ connection: ModelConnection) -> [String: Any] {
+        ["baseUrl": baseURL(connection), "api": api(connection.provider), "apiKey": "$" + keyVariable,
+         "models": [[
             "id": connection.modelID,
             "name": connection.displayName,
             "contextWindow": connection.contextWindow,
             "maxTokens": maxTokens(connection),
-        ]
-        if let supportedEfforts, supportedEfforts.contains(where: { $0 != "off" }) {
-            let allowed = Set(supportedEfforts)
-            var map: [String: Any] = [:]
-            for level in ["off", "minimal", "low", "medium", "high", "xhigh", "max"] {
-                map[level] = allowed.contains(level) ? level : NSNull()
-            }
-            model["reasoning"] = true
-            model["thinkingLevelMap"] = map
-        }
-        return ["baseUrl": baseURL(connection), "api": api(connection.provider), "apiKey": "$" + keyVariable,
-                "models": [model]]
+         ]]]
     }
 
     /// Pi options for Pippa's own Pi when the online service is working (instead of `--provider pippa-local`).

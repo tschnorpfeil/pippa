@@ -143,6 +143,13 @@ final class WKBrowserSession: NSObject, ObservableObject, BrowserOperating, WKNa
         !isOnline && (tab.key == displayedKey || tab.key == key(for: ChatModel.shared.currentID))
     }
 
+    /// Shows `tab` and opens the panel when it belongs to the conversation on screen.
+    private func openIfInFront(_ tab: Tab) {
+        guard isInFront(tab) else { return }
+        if displayedKey != tab.key { displayedKey = tab.key }
+        isOpen = true
+    }
+
     private func tab(of view: WKWebView) -> Tab? {
         tabs.values.first { $0.webView === view || $0.popupWebView === view }
     }
@@ -291,7 +298,7 @@ final class WKBrowserSession: NSObject, ObservableObject, BrowserOperating, WKNa
     func showHandoff(_ message: String, conversation: String? = nil) {
         let tab = tab(for: conversation)
         tab.handoffMessage = message
-        if isInFront(tab) { isOpen = true }
+        openIfInFront(tab)
         publish()
     }
 
@@ -443,7 +450,7 @@ final class WKBrowserSession: NSObject, ObservableObject, BrowserOperating, WKNa
             if await resolvesToPrivateAddress(host) { throw BrowserError.blockedAddress }
             try await installRules()
             guard tabs[tab.key] === tab else { throw BrowserError.failed }
-            if isInFront(tab) { isOpen = true }
+            openIfInFront(tab)
             // Pippa opens addresses in the tab itself, never in a window the page opened.
             closePopupView(of: tab)
             let view = materialize(tab)

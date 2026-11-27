@@ -346,26 +346,29 @@ extension ApprovalsChecks {
         for _ in 0..<5 { await Task.yield() }
         check(approvals.questions.map(\.id) == ["steer-confirm"] && approvals.questions.first?.conversationID == id,
               "the answer's confirmation card is open")
-        chat.draft = "Doch nicht senden"
-        chat.steer()
-        let response = await card.value
-        let record = chat.conversations.first { $0.id == id }?.messages.last?.answeredQuestions?.last
-        check(response == .cancelled && approvals.questions.isEmpty && record?.id == "steer-confirm" && record?.outcome == .cancelled
-              && record?.answer == T("Follow-up sent", table: "App") && record?.displayAnswer == T("Follow-up sent", table: "App"),
-              "a follow-up cancels the open card (never allows it) and records it as cancelled for the follow-up")
-        check(AnsweredQuestion(id: "plain", kind: .confirm, title: "x", outcome: .cancelled, answeredAt: Date()).displayAnswer
-              == T("Cancelled", table: "Views"), "a plain cancellation still says Cancelled")
-        await wait { sent.count == 2 }
-        check(sent.last == "Doch nicht senden", "the follow-up still reaches Pi after the card was cancelled")
-
+        // S1: if Pi refuses the follow-up, the live approval card stays open and the words return to the composer.
         chat.steerSender = { _ in false }
         chat.draft = "Abgelehnt"
         chat.steer()
         await wait { !chat.draft.isEmpty }
-        check(chat.draft == "Abgelehnt", "a burst Pi refuses comes back into the composer")
+        check(chat.draft == "Abgelehnt" && approvals.questions.map(\.id) == ["steer-confirm"],
+              "a burst Pi refuses comes back into the composer and leaves an open approval card intact")
 
+        // S1: with an open card, steer skips the coalesce delay, delivers to Pi first, then cancels the card.
         ChatModel.steerCoalesceDelay = .seconds(30)
         chat.steerSender = { sent.append($0); return true }
+        chat.draft = "Doch nicht senden"
+        chat.steer()
+        let response = await card.value
+        let sentBeforeCancel = sent.last == "Doch nicht senden"
+        let record = chat.conversations.first { $0.id == id }?.messages.last?.answeredQuestions?.last
+        check(response == .cancelled && sentBeforeCancel && approvals.questions.isEmpty && record?.id == "steer-confirm"
+              && record?.outcome == .cancelled && record?.answer == T("Follow-up sent", table: "App")
+              && record?.displayAnswer == T("Follow-up sent", table: "App"),
+              "a follow-up delivers to Pi immediately before cancelling the open card and recording it as cancelled for the follow-up")
+        check(AnsweredQuestion(id: "plain", kind: .confirm, title: "x", outcome: .cancelled, answeredAt: Date()).displayAnswer
+              == T("Cancelled", table: "Views"), "a plain cancellation still says Cancelled")
+
         chat.draft = "Noch nicht raus"
         chat.steer()
         chat.stop()
@@ -505,14 +508,20 @@ extension ApprovalsChecks {
               "the PDF finishes on its own while A still answers")
 
         chat.currentID = a
+        chat.draft = "Entwurf in A"
+        chat.frontApp = "Mail"
         chat.attachments = [URL(fileURLWithPath: "/synthetic/Scan.pdf")]
         let count = chat.conversations.count
         chat.makePDF()
-        check(chat.pdfConversationID != a && chat.conversations.count == count + 1
-              && chat.conversations.first { $0.id == a }?.messages.count == 2,
-              "One PDF from the answering conversation goes into a new one, so the answer's words stay its own")
+        let pdfID = chat.pdfConversationID
+        let newComposerClean = chat.draft.isEmpty && chat.frontApp == nil && chat.attachments.isEmpty
         chat.stopPDF()
         let stopped = chat.conversations.first { $0.id == chat.currentID }?.messages.last
+        chat.select(a)
+        check(pdfID != a && chat.conversations.count == count + 1
+              && chat.conversations.first { $0.id == a }?.messages.count == 2
+              && newComposerClean && chat.draft == "Entwurf in A" && chat.attachments.isEmpty,
+              "One PDF from the answering conversation goes into a new one and keeps the answering conversation's unsent draft")
         check(!chat.isMakingPDF && stopped?.stopped == true && chat.isAnswering, "Stop ends the PDF at once and leaves the answer running")
         // The cancelled job settles under the demo host before the real one comes back.
         try? await Task.sleep(for: .milliseconds(200))
@@ -965,6 +974,15 @@ extension ApprovalsChecks {
         pool.forgetConversation("g")
         check(pool.tabs["g"] == nil && !pool.isOpen && pool.displayedKey == WKBrowserSession.defaultKey,
               "browser A23: forgetting a deleted conversation discards its tab and closes the panel if shown")
+
+        // S4: opening handoff for the chat's active conversation switches displayedKey before opening the panel.
+        let savedChatCurrent = ChatModel.shared.currentID
+        ChatModel.shared.currentID = "h"
+        pool.showHandoff("Sign in", conversation: "h")
+        let switchedForHandoff = pool.isOpen && pool.displayedKey == "h" && pool.handoffMessage == "Sign in"
+        pool.forgetConversation("h")
+        ChatModel.shared.currentID = savedChatCurrent
+        check(switchedForHandoff, "browser A23: opening handoff for the visible chat switches the panel to that chat's tab")
 
         pool.resolvesToPrivateAddress = { $0 == "intranet.example.com" }
         f.modelActions = 1

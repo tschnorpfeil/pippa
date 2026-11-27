@@ -32,18 +32,19 @@ extension PippaMCPTools {
         guard store.claim(owner, extended: turn?.extendedBudget == true, live: { mailTurnIsLive(turn) }) else { return Self.mailCancelled }
         if let token = input.cursor {
             guard MailPageStore.isToken(token, prefix: "c") else { return invalid("cursor must be the cursor from the last mail_search result.") }
-            guard let found = store.takeCursor(token, turn: owner) else {
+            switch store.takeCursor(token, turn: owner, accept: { snapshot in
+                (input.query.map { $0.trimmingCharacters(in: .whitespacesAndNewlines) == snapshot.query } ?? true)
+                    && ((input.unread == nil && input.readStatus == nil) || readStatus == snapshot.readStatus)
+                    && (input.mailbox == nil || mailbox == snapshot.mailbox)
+                    && (input.account.map { $0 == snapshot.account } ?? true)
+            }) {
+            case .missing:
                 return Self.notRead("stale_cursor", "This cursor is not from a mail_search in this answer, was already used, or that search has ended. Nothing was read. Use the cursor from the newest result, or call mail_search again without cursor.")
-            }
-            let sameFilters = (input.query.map { $0.trimmingCharacters(in: .whitespacesAndNewlines) == found.snapshot.query } ?? true)
-                && ((input.unread == nil && input.readStatus == nil) || readStatus == found.snapshot.readStatus)
-                && (input.mailbox == nil || mailbox == found.snapshot.mailbox)
-                && (input.account.map { $0 == found.snapshot.account } ?? true)
-            guard sameFilters else {
-                store.restoreCursor(token, snapshot: found.snapshot.id, offset: found.offset, turn: owner)
+            case .rejected:
                 return invalid("cursor continues its own search: pass only cursor (and limit).")
+            case .taken(let snapshot, let offset):
+                return await page(reader, snapshot, offset: offset, limit: limit, turn: turn, from: token)
             }
-            return await page(reader, found.snapshot, offset: found.offset, limit: limit, turn: turn, from: token)
         }
         let accounts: [MailAccountInfo]
         do { accounts = try await reader.inboxAccounts() } catch { return stillOwns(turn) ? failure(error, .mail) : Self.mailCancelled }

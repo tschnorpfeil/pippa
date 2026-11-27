@@ -421,21 +421,24 @@ final class ChatModel: ObservableObject {
     }
 
     /// Sends the draft into the running answer; Pi reads it after its current step and it shows as the person's message
-    /// (`steered`). Open questions of the answer are cancelled first: the follow-up replaces them. Follow-ups within
-    /// `steerCoalesceDelay` of each other go to Pi as one message. Refused by Pi: the words go back into the composer.
+    /// (`steered`). Follow-ups within `steerCoalesceDelay` of each other go to Pi as one message (sent right away when
+    /// an open approval card waits, cancelling the card once Pi accepts the follow-up). Refused by Pi: the words go back
+    /// into the composer.
     func steer() {
         let text = draft.trimmingCharacters(in: .whitespacesAndNewlines)
         guard canSteerHere, !text.isEmpty else { return }
         let targetID = answeringID ?? currentID
         let turn = generation
+        let immediate = Approvals.shared.hasOpenQuestions(in: targetID)
         draft = ""
-        Approvals.shared.cancelForSteer(in: targetID)
         pendingSteerTexts.append(text)
         pendingSteerTarget = targetID
         steerFlushTask?.cancel()
         steerFlushTask = Task { [weak self] in
-            try? await Task.sleep(for: Self.steerCoalesceDelay)
-            guard !Task.isCancelled else { return }
+            if !immediate {
+                try? await Task.sleep(for: Self.steerCoalesceDelay)
+                guard !Task.isCancelled else { return }
+            }
             await self?.flushSteer(turn: turn)
         }
     }
@@ -471,7 +474,8 @@ final class ChatModel: ObservableObject {
                 return
             }
             let accepted = await self.steerSender(combined)
-            if !accepted { self.restoreDraft(combined, to: targetID) }
+            if accepted { Approvals.shared.cancelForSteer(in: targetID) }
+            else { self.restoreDraft(combined, to: targetID) }
         }
         steerInFlight = send
         steerInFlightID = token
@@ -634,8 +638,11 @@ final class ChatModel: ObservableObject {
     func makePDF() {
         guard !isMakingPDF, !attachments.isEmpty else { return }
         let files = attachments
+        attachments = []
         let id: String
         if let current, !(isAnswering && answeringID == current.id) { id = current.id } else {
+            if let previousID = currentID { saveComposer(for: previousID) }
+            draft = ""; frontApp = nil
             id = UUID().uuidString.lowercased()
             desk.select(id)
             startConversation(id, title: T("One PDF", table: "App"))
@@ -644,7 +651,6 @@ final class ChatModel: ObservableObject {
         save(id)
         let reply = ChatMessage(role: .assistant, text: T("Making one PDF…", table: "App"))
         append(reply, to: id)
-        attachments = []
         let started = Date()
         isMakingPDF = true
         pdfConversationID = id

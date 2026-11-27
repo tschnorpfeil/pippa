@@ -330,17 +330,26 @@ public final class MailPageStore: @unchecked Sendable {
 
     func save(_ snapshot: MailSnapshot, turn: UUID?) -> Bool { owned(turn) { snapshots[snapshot.id] = snapshot; return true } ?? false }
 
-    /// Takes the cursor: it works once, so a repeated or parallel use reads nothing. `restore` gives it back when its page fails.
-    /// Continuing after a page's structured rows charges those rows now, so a script stays within the same budget.
-    func takeCursor(_ token: String, turn: UUID?) -> (snapshot: MailSnapshot, offset: Int)? {
-        owned(turn) { () -> (snapshot: MailSnapshot, offset: Int)? in
-            guard let c = cursors.removeValue(forKey: token), var snapshot = snapshots[c.snapshot] else { return nil }
+    enum CursorTake {
+        case taken(snapshot: MailSnapshot, offset: Int)
+        case rejected
+        case missing
+    }
+
+    /// Takes the cursor once `accept` confirms the caller's filters match: it works once, so a repeated or parallel use
+    /// reads nothing. `restore` gives it back when its page fails. Continuing after a page's structured rows charges
+    /// those rows only once accepted, so a mismatched call never consumes the cursor or its paired budget.
+    func takeCursor(_ token: String, turn: UUID?, accept: (MailSnapshot) -> Bool = { _ in true }) -> CursorTake {
+        owned(turn) { () -> CursorTake in
+            guard let c = cursors[token], var snapshot = snapshots[c.snapshot] else { return .missing }
+            guard accept(snapshot) else { return .rejected }
+            cursors.removeValue(forKey: token)
             if let pair = c.pair { cursors.removeValue(forKey: pair) }
             delivered += c.owed
             snapshot.gone += c.gone
             snapshots[c.snapshot] = snapshot
-            return (snapshot, c.offset)
-        } ?? nil
+            return .taken(snapshot: snapshot, offset: c.offset)
+        } ?? .missing
     }
 
     func restoreCursor(_ token: String, snapshot: String, offset: Int, turn: UUID?) {
