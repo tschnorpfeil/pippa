@@ -103,6 +103,13 @@ struct MessageView: View, Equatable {
             if live || !message.steps.isEmpty || !(message.thinking ?? "").isEmpty || message.stopped == true {
                 WorkView(message: message, live: live, starting: starting, writing: writing, started: started, waiting: waiting)
             }
+            if let answered = message.answeredQuestions, !answered.isEmpty {
+                VStack(alignment: .leading, spacing: Space.s) {
+                    ForEach(answered) { item in
+                        AnsweredQuestionRow(item: item)
+                    }
+                }
+            }
             if !message.text.isEmpty {
                 MarkdownText(text: message.text, highlights: live ? [] : message.unsupportedDates ?? [])
             }

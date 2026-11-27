@@ -72,7 +72,7 @@ enum IslandSnapshots {
                 for _ in 0..<5 { await Task.yield() }
                 island.showForSnapshot(status(questions: approvals.questions.count))
             }),
-            // Pippa's `ask` with four choices and "Something else…": every choice is a row of its own.
+            // Pippa's `ask` with four choices and "Something else…": four direct rows plus an inline free-text field.
             ("needs-you-select-long", true, {
                 approvals.cancelAll()
                 _ = await question?.value

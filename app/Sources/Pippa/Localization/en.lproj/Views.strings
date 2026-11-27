@@ -15,7 +15,11 @@
 "“%@” in Mail" = "“%@” in Mail";
 "“%@” in Photos" = "“%@” in Photos";
 "Meanwhile, drop photos or PDFs here to make one PDF." = "Meanwhile, drop photos or PDFs here to make one PDF.";
-"Choose…" = "Choose…";
+"Choose" = "Choose";
+"Or type your own answer…" = "Or type your own answer…";
+"Allowed" = "Allowed";
+"Declined" = "Declined";
+"Cancelled" = "Cancelled";
 
 /* Pippa's browser panel (BrowserPanelView.swift) */
 "Back" = "Back";

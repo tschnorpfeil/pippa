@@ -9,6 +9,7 @@ struct QuestionCard: View {
     /// Only the oldest open question takes Escape and Return.
     var handlesKeys: Bool
     private let textState: State<String>
+    private let selectedOptionState = State<String?>(initialValue: nil)
     @FocusState private var fieldFocused: Bool
 
     init(question: Approvals.Question, handlesKeys: Bool) {
@@ -22,12 +23,17 @@ struct QuestionCard: View {
     private var escape: KeyboardShortcut? { handlesKeys ? .cancelAction : nil }
 
     private var text: ApprovalPresentation { ApprovalPresentation.parse(request) }
+    private var parsedChoices: ApprovalChoices { ApprovalChoices.parse(request.options) }
+    private var validatedText: String? { ApprovalChoices.validatedText(textState.wrappedValue) }
+    private var selectPayload: String? { validatedText ?? selectedOptionState.wrappedValue }
+    private var canSubmitSelect: Bool { selectPayload != nil }
+    private var canSubmitInput: Bool { validatedText != nil }
 
     var body: some View {
         let text = self.text
         VStack(alignment: .leading, spacing: Space.l) {
             HStack(alignment: .firstTextBaseline, spacing: Space.m) {
-                CardSymbol(symbol: "hand.raised.fill")
+                CardSymbol(symbol: request.method == "select" ? "questionmark.circle" : "hand.raised.fill")
                     .alignmentGuide(.firstTextBaseline) { $0[VerticalAlignment.center] + 5 }
                 Text(text.title).font(Typo.headline).foregroundStyle(Theme.ink)
                     .fixedSize(horizontal: false, vertical: true)
@@ -76,26 +82,52 @@ struct QuestionCard: View {
                 ActionPill(title: labels.no, shortcut: escape) { answer(.confirmed(false)) }
                 ActionPill(title: labels.yes, primary: true) { answer(.confirmed(true)) }
             }
-        case "select" where request.options.count <= 3:
-            HStack(spacing: Space.m) {
-                Spacer(minLength: 0)
-                ForEach(request.options, id: \.self) { option in
-                    ActionPill(title: option) { answer(.value(option)) }
-                }
-            }
-            .background { if handlesKeys { CancelKey { answer(.cancelled) } } }
         case "select":
-            HStack(spacing: Space.m) {
-                Menu {
-                    ForEach(request.options, id: \.self) { option in
-                        Button(option) { answer(.value(option)) }
+            let choices = parsedChoices
+            VStack(alignment: .leading, spacing: Space.m) {
+                VStack(alignment: .leading, spacing: Space.xs) {
+                    ForEach(choices.options, id: \.self) { option in
+                        let selected = selectedOptionState.wrappedValue == option && validatedText == nil
+                        SelectOptionRow(title: option, selected: selected) {
+                            handleOptionTap(option)
+                        }
                     }
-                } label: {
-                    Text(T("Choose…", table: "Views"))
                 }
-                .fixedSize()
-                Spacer(minLength: 0)
-                ActionPill(title: T("Cancel", table: "App"), shortcut: escape) { answer(.cancelled) }
+                if choices.allowsCustomText {
+                    let active = fieldFocused || validatedText != nil
+                    TextField(text: textState.projectedValue,
+                              prompt: Text(T("Or type your own answer…", table: "Views")).foregroundStyle(Theme.ink3),
+                              axis: .horizontal) { EmptyView() }
+                        .textFieldStyle(.plain).font(Typo.callout).foregroundStyle(Theme.ink)
+                        .lineLimit(1...1)
+                        .focused($fieldFocused)
+                        .onChange(of: textState.wrappedValue) { _, newValue in
+                            if !newValue.isEmpty, selectedOptionState.wrappedValue != nil {
+                                withAnimation(Theme.quick) { selectedOptionState.wrappedValue = nil }
+                            }
+                        }
+                        .onSubmit { submitSelect() }
+                        .padding(.horizontal, Space.ml).padding(.vertical, Space.m)
+                        .background(Theme.chatInset, in: RoundedRectangle(cornerRadius: Radius.control, style: .continuous))
+                        .overlay {
+                            RoundedRectangle(cornerRadius: Radius.control, style: .continuous)
+                                .strokeBorder(active ? Theme.accent.opacity(0.55) : Theme.hairline, lineWidth: 1)
+                        }
+                        .accessibilityLabel(T("Or type your own answer…", table: "Views"))
+                }
+                HStack(spacing: Space.m) {
+                    Spacer(minLength: 0)
+                    ActionPill(title: T("Cancel", table: "App"), shortcut: escape) { answer(.cancelled) }
+                    ActionPill(
+                        title: validatedText != nil ? T("Send", table: "App") : T("Choose", table: "Views"),
+                        primary: true,
+                        shortcut: handlesKeys && canSubmitSelect ? .defaultAction : nil
+                    ) {
+                        submitSelect()
+                    }
+                    .disabled(!canSubmitSelect)
+                    .opacity(canSubmitSelect ? 1 : 0.45)
+                }
             }
         default:
             VStack(alignment: .trailing, spacing: Space.m) {
@@ -104,17 +136,37 @@ struct QuestionCard: View {
                     .textFieldStyle(.plain).font(Typo.body)
                     .lineLimit(request.method == "editor" ? 3...10 : 1...1)
                     .focused($fieldFocused)
-                    .onSubmit { answer(.value(textState.wrappedValue)) }
+                    .onSubmit { submitInput() }
                     .padding(.horizontal, Space.ml).padding(.vertical, Space.m)
                     .background(Theme.chatInset, in: RoundedRectangle(cornerRadius: Radius.control, style: .continuous))
                     .overlay { RoundedRectangle(cornerRadius: Radius.control, style: .continuous).strokeBorder(Theme.hairline, lineWidth: 1) }
                     .onAppear { if handlesKeys { fieldFocused = true } }
                 HStack(spacing: Space.m) {
                     ActionPill(title: T("Cancel", table: "App"), shortcut: escape) { answer(.cancelled) }
-                    ActionPill(title: T("OK", table: "App"), primary: true) { answer(.value(textState.wrappedValue)) }
+                    ActionPill(title: T("OK", table: "App"), primary: true) { submitInput() }
+                        .disabled(!canSubmitInput)
+                        .opacity(canSubmitInput ? 1 : 0.45)
                 }
             }
         }
+    }
+
+    private func handleOptionTap(_ option: String) {
+        withAnimation(Theme.quick) {
+            selectedOptionState.wrappedValue = option
+            if !textState.wrappedValue.isEmpty { textState.wrappedValue = "" }
+        }
+        fieldFocused = false
+    }
+
+    private func submitSelect() {
+        guard let value = selectPayload else { return }
+        answer(.value(value))
+    }
+
+    private func submitInput() {
+        guard let value = validatedText else { return }
+        answer(.value(value))
     }
 
     private func answer(_ response: PiUIResponse) {
@@ -122,16 +174,102 @@ struct QuestionCard: View {
     }
 }
 
-/// Escape for a question whose answers are all choices: no visible button, only the key.
-private struct CancelKey: View {
+/// One full-width selectable option row inside `QuestionCard`.
+private struct SelectOptionRow: View {
+    var title: String
+    var selected: Bool
     var action: () -> Void
+    private let hoverState = State(initialValue: false)
 
     var body: some View {
-        Button(action: action) { EmptyView() }
-            .keyboardShortcut(.cancelAction)
-            .buttonStyle(.plain)
-            .frame(width: 0, height: 0)
-            .opacity(0)
-            .accessibilityHidden(true)
+        let shape = RoundedRectangle(cornerRadius: Radius.control, style: .continuous)
+        Button(action: action) {
+            HStack(alignment: .firstTextBaseline, spacing: Space.m) {
+                Image(systemName: selected ? "checkmark.circle.fill" : "circle")
+                    .font(Typo.callout)
+                    .foregroundStyle(selected ? Theme.accent : Theme.ink3)
+                    .accessibilityHidden(true)
+                Text(title)
+                    .font(selected ? Typo.callout.weight(.medium) : Typo.callout)
+                    .foregroundStyle(Theme.ink)
+                    .multilineTextAlignment(.leading)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .padding(.horizontal, Space.ml)
+            .padding(.vertical, Space.m)
+            .background(selected ? Theme.accentTint : (hoverState.wrappedValue ? Theme.fill2 : Theme.fill), in: shape)
+            .overlay {
+                shape.strokeBorder(selected ? Theme.accent.opacity(0.45) : Theme.hairline, lineWidth: 1)
+            }
+            .contentShape(shape)
+        }
+        .buttonStyle(.plain)
+        .onHover { hovering in withAnimation(Theme.quick) { hoverState.wrappedValue = hovering } }
+        .accessibilityLabel(title)
+        .accessibilityAddTraits(selected ? [.isButton, .isSelected] : [.isButton])
+    }
+}
+
+/// A compact, dimmed read-only record of a question Pi asked and how the person answered or cancelled it.
+struct AnsweredQuestionRow: View {
+    var item: AnsweredQuestion
+
+    private var symbol: String {
+        switch item.outcome {
+        case .allowed, .answered: "checkmark.circle"
+        case .declined: "xmark.circle"
+        case .cancelled: "minus.circle"
+        }
+    }
+
+    private var symbolColor: Color {
+        switch item.outcome {
+        case .allowed, .answered: Theme.ok.opacity(0.8)
+        case .declined, .cancelled: Theme.ink3
+        }
+    }
+
+    var body: some View {
+        let shape = RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
+        HStack(alignment: .firstTextBaseline, spacing: Space.m) {
+            Image(systemName: symbol)
+                .font(Typo.footnote.weight(.medium))
+                .foregroundStyle(symbolColor)
+                .accessibilityHidden(true)
+            VStack(alignment: .leading, spacing: Space.xxs) {
+                Text(item.title)
+                    .font(Typo.footnote.weight(.medium))
+                    .foregroundStyle(Theme.ink2)
+                    .fixedSize(horizontal: false, vertical: true)
+                if let detail = item.detail, !detail.isEmpty {
+                    Text(detail)
+                        .font(Typo.caption)
+                        .foregroundStyle(Theme.ink3)
+                        .lineLimit(2)
+                        .truncationMode(.tail)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            Text(item.displayAnswer)
+                .font(Typo.caption.weight(.medium))
+                .foregroundStyle(item.outcome == .cancelled || item.outcome == .declined ? Theme.ink3 : Theme.ink2)
+                .lineLimit(1)
+                .truncationMode(.tail)
+                .padding(.horizontal, Space.m)
+                .padding(.vertical, Space.xxs)
+                .background(Theme.fill2, in: Capsule())
+        }
+        .padding(.horizontal, Space.card)
+        .padding(.vertical, Space.ml)
+        .frame(maxWidth: Layout.cardMax, alignment: .leading)
+        .background(Theme.chatInset, in: shape)
+        .overlay {
+            shape.strokeBorder(Theme.hairline, style: StrokeStyle(lineWidth: 1, dash: [4, 3]))
+                .allowsHitTesting(false)
+        }
+        .opacity(0.86)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(item.title): \(item.displayAnswer)")
     }
 }

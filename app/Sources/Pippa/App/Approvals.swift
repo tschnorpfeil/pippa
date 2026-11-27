@@ -2,6 +2,118 @@ import AppKit
 import Combine
 import PiRPC
 
+/// Parsed options for a `select` question, shared by `QuestionCard` and `IslandQuestionAnswers`.
+/// Recognizes `ask.ts`'s trailing `otherChoice` sentinel ("Something else…" / "Etwas anderes …") so both views render
+/// the real choices directly alongside an inline free-text field without a second `ui.input` round-trip.
+struct ApprovalChoices: Equatable {
+    static let otherSentinels: Set<String> = [
+        "Something else…",
+        "Something else...",
+        "Etwas anderes …",
+        "Etwas anderes…",
+        "Etwas anderes...",
+    ]
+
+    /// The real selectable choices (excluding any trailing `otherChoice` sentinel).
+    let options: [String]
+    /// Whether the person can type their own answer inline on the same card.
+    let allowsCustomText: Bool
+    /// The original sentinel label when present.
+    let customPrompt: String?
+
+    static func parse(_ rawOptions: [String]) -> ApprovalChoices {
+        guard let last = rawOptions.last else {
+            return ApprovalChoices(options: [], allowsCustomText: false, customPrompt: nil)
+        }
+        let trimmedLast = last.trimmingCharacters(in: .whitespacesAndNewlines)
+        if otherSentinels.contains(trimmedLast) {
+            return ApprovalChoices(options: Array(rawOptions.dropLast()), allowsCustomText: true, customPrompt: trimmedLast)
+        }
+        return ApprovalChoices(options: rawOptions, allowsCustomText: false, customPrompt: nil)
+    }
+
+    /// Trims free-text input and rejects empty or whitespace-only answers.
+    static func validatedText(_ text: String) -> String? {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? nil : trimmed
+    }
+}
+
+/// A compact, read-only record of a Pi question and how the person answered or cancelled it, saved on `ChatMessage`.
+struct AnsweredQuestion: Codable, Identifiable, Equatable {
+    enum Kind: String, Codable, Equatable {
+        case confirm
+        case select
+        case input
+    }
+
+    enum Outcome: String, Codable, Equatable {
+        case allowed
+        case declined
+        case answered
+        case cancelled
+    }
+
+    var id: String
+    var kind: Kind
+    var title: String
+    var detail: String?
+    var answer: String?
+    var outcome: Outcome
+    var answeredAt: Date
+
+    @MainActor
+    static func from(_ question: Approvals.Question, response: PiUIResponse, at date: Date = Date()) -> AnsweredQuestion {
+        let request = question.request
+        let parsed = ApprovalPresentation.parse(request)
+        let kind: Kind = switch request.method {
+        case "confirm": .confirm
+        case "select": .select
+        default: .input
+        }
+        let outcome: Outcome
+        let answerText: String?
+        switch response {
+        case .confirmed(true):
+            outcome = .allowed
+            answerText = Confirmations.confirmLabels(request).yes
+        case .confirmed(false):
+            outcome = .declined
+            answerText = Confirmations.confirmLabels(request).no
+        case .value(let raw):
+            if let trimmed = ApprovalChoices.validatedText(raw) {
+                outcome = .answered
+                answerText = trimmed
+            } else {
+                outcome = .cancelled
+                answerText = nil
+            }
+        case .cancelled:
+            outcome = .cancelled
+            answerText = nil
+        }
+        return AnsweredQuestion(
+            id: question.id,
+            kind: kind,
+            title: parsed.title,
+            detail: parsed.summary,
+            answer: answerText,
+            outcome: outcome,
+            answeredAt: date
+        )
+    }
+
+    /// Localized display label for the outcome badge in the transcript.
+    var displayAnswer: String {
+        switch outcome {
+        case .allowed: answer ?? T("Allowed", table: "Views")
+        case .declined: answer ?? T("Declined", table: "Views")
+        case .answered: answer ?? ""
+        case .cancelled: T("Cancelled", table: "Views")
+        }
+    }
+}
+
 /// Questions Pi's extensions ask during an answer ("May Pippa search the web?"), answered inside Pippa instead of a
 /// modal alert. Views that can show them (the chat transcript, the island) register as presenters while they are on
 /// screen; without one, the question falls back to the plain alert in `Confirmations`, so nothing waits unseen.
@@ -19,12 +131,17 @@ final class Approvals: ObservableObject {
 
     /// Open questions, oldest first.
     @Published private(set) var questions: [Question] = []
+    /// Called whenever an open question is answered or cancelled so the chat can keep a read-only record.
+    var onAnswered: (@MainActor (Question, AnsweredQuestion) -> Void)?
     private var waiting: [String: CheckedContinuation<PiUIResponse, Never>] = [:]
     private var presenters: [String: Int] = [:]
     private var reveals: [String: () -> Void] = [:]
     private var answerWatch: AnyCancellable?
 
     private init() {
+        onAnswered = { question, record in
+            ChatModel.shared.recordAnsweredQuestion(record, in: question.conversationID)
+        }
         // An answer that ends (finished, stopped, failed) takes its open questions with it.
         answerWatch = ChatModel.shared.$isAnswering.removeDuplicates().sink { [weak self] answering in
             if !answering { self?.cancelAll() }
@@ -77,7 +194,12 @@ final class Approvals: ObservableObject {
     /// The person's answer; a question already answered or cancelled is ignored.
     func answer(_ id: String, _ response: PiUIResponse) {
         guard let continuation = waiting.removeValue(forKey: id) else { return }
+        let removed = questions.first { $0.id == id }
         questions.removeAll { $0.id == id }
+        if let removed {
+            let record = AnsweredQuestion.from(removed, response: response)
+            onAnswered?(removed, record)
+        }
         continuation.resume(returning: response)
     }
 

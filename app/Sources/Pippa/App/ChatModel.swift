@@ -62,6 +62,8 @@ struct ChatMessage: Codable, Identifiable, Equatable {
     var resumeAfter: Date?
     /// The Pi session that answer ran in (`PiSession.resumeScope`): Continue only while typed words still go there.
     var resumeScope: String?
+    /// Read-only records of Pi questions answered or cancelled during this assistant message.
+    var answeredQuestions: [AnsweredQuestion]?
 }
 
 /// The review before anything from the Mac goes to an online AI: the provider, the person's words and each part Pippa
@@ -702,9 +704,10 @@ final class ChatModel: ObservableObject {
             run = message.run
             message.run = nil
         }
-        // A reply that had not begun yet (no words, no steps) leaves no empty bubble behind.
+        // A reply that had not begun yet (no words, no steps, no recorded answers) leaves no empty bubble behind.
         let previous = conversations[index].messages[last]
-        if previous.text.isEmpty && previous.steps.isEmpty && (previous.thinking ?? "").isEmpty && previous.error == nil {
+        if previous.text.isEmpty && previous.steps.isEmpty && (previous.thinking ?? "").isEmpty
+            && (previous.answeredQuestions ?? []).isEmpty && previous.error == nil {
             conversations[index].messages.remove(at: last)
         }
         evidence.add(prompt: text)
@@ -773,6 +776,23 @@ final class ChatModel: ObservableObject {
                 self.refreshRuns()
             }
         }
+    }
+
+    /// Appends a read-only record of an answered or cancelled Pi question to the conversation's active assistant message.
+    func recordAnsweredQuestion(_ answered: AnsweredQuestion, in conversationID: String?) {
+        guard let id = conversationID,
+              let index = conversations.firstIndex(where: { $0.id == id }) else { return }
+        let messageIndex: Int?
+        if id == answeringID, let replyID = activeReplyID {
+            messageIndex = conversations[index].messages.firstIndex(where: { $0.id == replyID })
+        } else {
+            messageIndex = conversations[index].messages.lastIndex(where: { $0.role == .assistant })
+        }
+        guard let target = messageIndex ?? conversations[index].messages.lastIndex(where: { $0.role == .assistant }) else { return }
+        var list = conversations[index].messages[target].answeredQuestions ?? []
+        list.append(answered)
+        conversations[index].messages[target].answeredQuestions = list
+        save(id)
     }
 
     /// Hands a copy to the background writer; files are written in the order they were saved.

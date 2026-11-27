@@ -118,6 +118,7 @@ enum ApprovalsChecks {
         host.turns.end(turnB)
 
         await actionCardChecks(approvals, check: check)
+        await answeredQuestionChecks(approvals, check: check)
         await runUndoChecks(check: check)
         await runSteerChecks(check: check)
         failures += Int(await HeadlessAskChecks.run())
@@ -128,6 +129,112 @@ enum ApprovalsChecks {
 }
 
 extension ApprovalsChecks {
+    /// One-card `select` choice parsing, whitespace rejection, answered-question persistence, JSON round-trip and
+    /// backwards-compatible decoding, and cancellation/timeout/stop outcomes (A5, A6, A7).
+    static func answeredQuestionChecks(_ approvals: Approvals, check: (Bool, String) -> Void) async {
+        // A6: Shared `ApprovalChoices` helper detects English and German `otherChoice` sentinels.
+        let enChoices = ApprovalChoices.parse(["Opt 1", "Opt 2", "Opt 3", "Opt 4", "Something else…"])
+        let deChoices = ApprovalChoices.parse(["Lena Berger", "Lena Koch", "Etwas anderes …"])
+        let plainChoices = ApprovalChoices.parse(["Once", "Always"])
+        check(enChoices.options == ["Opt 1", "Opt 2", "Opt 3", "Opt 4"] && enChoices.allowsCustomText && enChoices.customPrompt == "Something else…"
+              && deChoices.options == ["Lena Berger", "Lena Koch"] && deChoices.allowsCustomText
+              && plainChoices.options == ["Once", "Always"] && !plainChoices.allowsCustomText && plainChoices.customPrompt == nil,
+              "shared choice parser splits trailing otherChoice sentinels in English and German while keeping plain choices intact")
+
+        // A7: Whitespace-only free text is never accepted as a valid answer.
+        check(ApprovalChoices.validatedText("") == nil
+              && ApprovalChoices.validatedText("   \t\n  ") == nil
+              && ApprovalChoices.validatedText("  Lena from work  ") == "Lena from work",
+              "whitespace-only free text is rejected and valid free text is trimmed")
+
+        // A5 & A7: Answering, cancelling, timing out and stopping record read-only entries on the running ChatMessage.
+        let chat = ChatModel.shared
+        let saved = (chat.conversations, chat.currentID)
+        let id = "answered-question-check"
+        chat.showSample([Conversation(id: id, title: "Synthetic", updated: Date(),
+                                      messages: [ChatMessage(role: .user, text: "Check"), ChatMessage(role: .assistant, text: "")])],
+                        current: id, answering: true)
+        defer { chat.showSample(saved.0, current: saved.1, answering: false) }
+
+        func settle() async { for _ in 0..<5 { await Task.yield() } }
+
+        let confirmTask = Task {
+            await approvals.ask(PiUIRequest(id: "aq-confirm", method: "confirm", title: "Search the web?",
+                                            message: "Pippa wants to look this up online."))
+        }
+        await settle()
+        approvals.answer("aq-confirm", .confirmed(true))
+        _ = await confirmTask.value
+
+        let selectTask = Task {
+            await approvals.ask(PiUIRequest(id: "aq-select", method: "select", title: "Which Lena?", message: "",
+                                            options: ["Lena B.", "Lena K.", "Lena M.", "Lena S.", "Something else…"]))
+        }
+        await settle()
+        approvals.answer("aq-select", .value("Lena from work"))
+        _ = await selectTask.value
+
+        let cancelTask = Task {
+            await approvals.ask(PiUIRequest(id: "aq-cancel", method: "select", title: "Pick folder", message: "",
+                                            options: ["Documents", "Downloads"]))
+        }
+        await settle()
+        approvals.answer("aq-cancel", .cancelled)
+        _ = await cancelTask.value
+
+        let timeoutTask = Task {
+            await approvals.ask(PiUIRequest(id: "aq-timeout", method: "confirm", title: "Timed out?",
+                                            message: "Should cancel automatically.", timeout: 40))
+        }
+        await settle()
+        _ = await timeoutTask.value
+
+        let stopTask = Task {
+            await approvals.ask(PiUIRequest(id: "aq-stop", method: "confirm", title: "Stopped?",
+                                            message: "Cancelled when the answer stops."))
+        }
+        await settle()
+        approvals.cancelAll()
+        _ = await stopTask.value
+
+        let whitespaceRecord = AnsweredQuestion.from(
+            Approvals.Question(id: "aq-blank", request: PiUIRequest(id: "aq-blank", method: "input", title: "Folder name?", message: ""),
+                               conversationID: id, asked: Date()),
+            response: .value("   \n\t ")
+        )
+        check(whitespaceRecord.outcome == .cancelled && whitespaceRecord.answer == nil,
+              "whitespace-only value response is recorded as cancelled, never answered")
+
+        let message = chat.conversations.first(where: { $0.id == id })?.messages.last
+        let recorded = message?.answeredQuestions ?? []
+        check(approvals.questions.isEmpty && recorded.count == 5,
+              "answered, cancelled, timed-out and stopped questions are recorded on the ChatMessage and cleared from open questions")
+        if recorded.count == 5 {
+            check(recorded[0].kind == .confirm && recorded[0].outcome == .allowed && recorded[0].title == "Search the web?"
+                  && recorded[0].detail == "Pippa wants to look this up online."
+                  && recorded[1].kind == .select && recorded[1].outcome == .answered && recorded[1].answer == "Lena from work",
+                  "confirm and select answers keep their kind, title, detail and chosen value")
+            check(recorded[2].outcome == .cancelled && recorded[2].answer == nil
+                  && recorded[3].outcome == .cancelled && recorded[3].answer == nil
+                  && recorded[4].outcome == .cancelled && recorded[4].answer == nil,
+                  "cancel, timeout and stop all record cancelled and never allowed")
+        }
+
+        // A5: JSON round-trip and backwards compatibility with legacy ChatMessage JSON lacking `answeredQuestions`.
+        if let message,
+           let encoded = try? JSONEncoder().encode(message),
+           let decoded = try? JSONDecoder().decode(ChatMessage.self, from: encoded) {
+            check(decoded.answeredQuestions == message.answeredQuestions && decoded == message,
+                  "ChatMessage with answeredQuestions survives JSONEncoder/JSONDecoder round-trip")
+        } else {
+            check(false, "ChatMessage with answeredQuestions survives JSONEncoder/JSONDecoder round-trip")
+        }
+
+        let legacyJSON = #"{"id":"6F1A0C2E-AAAA-4C55-9E0B-000000000002","role":"assistant","text":"Legacy answer","files":[],"steps":[],"cards":[],"receipts":[]}"#
+        let legacy = try? JSONDecoder().decode(ChatMessage.self, from: Data(legacyJSON.utf8))
+        check(legacy?.text == "Legacy answer" && legacy?.answeredQuestions == nil,
+              "legacy ChatMessage JSON without answeredQuestions decodes cleanly")
+    }
     /// A follow-up while Pippa answers (`ChatModel.steer`, `PiSession.steer`): only typed words in the conversation
     /// that answers, never with files, a review, a single question, an approved message or after a settings change.
     static func runSteerChecks(check: (Bool, String) -> Void) async {
