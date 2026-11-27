@@ -13,6 +13,7 @@ import Foundation
 // - page text is read in parts (`read` with `from`): the first part comes with the snapshot;
 // - passwords, 2FA and CAPTCHAs are the person's: values of password fields are never captured, filling them is
 //   refused, and login or verification pages hand over to the person (`PippaMCPHost.onBrowserHandoff`);
+// - each conversation has its own page (`conversation`), so one answer never sees or changes another's tab;
 // - refs (`@e1` …) belong to one snapshot; an unknown ref or another snapshot's id fails before anything happens;
 // - page content is untrusted and bounded (`maxResultBytes`).
 
@@ -91,6 +92,15 @@ public protocol BrowserOperating: Sendable {
     func currentSnapshot() async -> BrowserSnapshot?
     /// Runs one action and returns the page after it; `nil` after `.close`.
     func perform(_ action: BrowserAction) async throws -> BrowserSnapshot?
+    /// The same for one conversation's own tab. `nil`: the browser's one shared page.
+    func currentSnapshot(conversation: String?) async -> BrowserSnapshot?
+    func perform(_ action: BrowserAction, conversation: String?) async throws -> BrowserSnapshot?
+}
+
+/// A browser with a single page serves every conversation from it.
+extension BrowserOperating {
+    public func currentSnapshot(conversation: String?) async -> BrowserSnapshot? { await currentSnapshot() }
+    public func perform(_ action: BrowserAction, conversation: String?) async throws -> BrowserSnapshot? { try await perform(action) }
 }
 
 /// Hosts the person allowed Pippa to open, per answer: a new answer asks again. Nil turns never persist.
@@ -135,9 +145,11 @@ public struct PippaMCPBrowserTool: Sendable {
 
     let host: PippaMCPHost
     let turn: UUID?
+    /// The conversation whose tab this call uses; `nil`: the browser's shared page.
+    let conversation: String?
     let writes: PippaMCPWriteScope
-    public init(host: PippaMCPHost, turn: UUID? = nil, writes: PippaMCPWriteScope = PippaMCPWriteScope()) {
-        self.host = host; self.turn = turn; self.writes = writes
+    public init(host: PippaMCPHost, turn: UUID? = nil, conversation: String? = nil, writes: PippaMCPWriteScope = PippaMCPWriteScope()) {
+        self.host = host; self.turn = turn; self.conversation = conversation; self.writes = writes
     }
 
     /// Changes things on web pages and goes online (class `external`, asked per step), but deletes nothing on the Mac.
@@ -380,7 +392,7 @@ public struct PippaMCPBrowserTool: Sendable {
             return (Self.notDone("cancelled", tell: L("Not done: the answer was stopped.", table: "Tools"), isError: true), "")
         }
         if request.action == "read" {
-            guard let current = await browser.currentSnapshot() else {
+            guard let current = await browser.currentSnapshot(conversation: conversation) else {
                 return (Self.stale("Nothing is captured in the browser now. Call browse with action snapshot."), "")
             }
             return (Self.readPart(current, from: request.from), Self.shortHost(URL(string: current.url)?.host(percentEncoded: false) ?? ""))
@@ -409,7 +421,7 @@ public struct PippaMCPBrowserTool: Sendable {
             }
             action = .open(url)
         case "click", "fill", "select", "form":
-            guard let current = await browser.currentSnapshot() else {
+            guard let current = await browser.currentSnapshot(conversation: conversation) else {
                 return (Self.stale("Nothing is captured in the browser now. Call browse with action snapshot, then use its refs."), "")
             }
             if let id = request.snapshotId, id != current.snapshotId {
@@ -505,7 +517,7 @@ public struct PippaMCPBrowserTool: Sendable {
                          mutating: Bool) async -> (PippaMCPToolResult, String) {
         var detail = detail
         do {
-            guard let snapshot = try await browser.perform(action) else {
+            guard let snapshot = try await browser.perform(action, conversation: conversation) else {
                 return (Self.done(["closed": true], source: nil, next: "The browser panel is closed."), detail)
             }
             if !["click", "fill", "select", "form"].contains(request.action) {
@@ -759,13 +771,18 @@ public struct PippaMCPBrowserTool: Sendable {
     }
 }
 
-/// Invented pages only, for PIPPA_DEMO=1 and checks: never loads anything. `page` builds what a URL shows.
+/// Invented pages only, for PIPPA_DEMO=1 and checks: never loads anything. `page` builds what a URL shows. Each
+/// conversation keeps its own history and snapshot; `nil` is one shared page, as before conversations had tabs.
 public final class DemoBrowserOperator: BrowserOperating, @unchecked Sendable {
     public typealias Page = @Sendable (_ url: URL, _ snapshotId: String) -> BrowserSnapshot
+    private struct Tab {
+        var history: [URL] = []
+        var current: BrowserSnapshot?
+    }
     private let lock = NSLock()
     private let page: Page
-    private var history: [URL] = []
-    private var current: BrowserSnapshot?
+    private var tabs: [String: Tab] = [:]
+    /// Snapshot ids count across every tab, so an id from one conversation never matches another's.
     private var counter = 0
     private var performed: [BrowserAction] = []
 
@@ -774,36 +791,52 @@ public final class DemoBrowserOperator: BrowserOperating, @unchecked Sendable {
     /// Every action that reached the browser, in order (checks: nothing reaches it before a refusal).
     public var actions: [BrowserAction] { lock.withLock { performed } }
 
-    public func currentSnapshot() async -> BrowserSnapshot? { lock.withLock { current } }
+    /// Conversations whose tab has a page open.
+    public var openConversations: [String] {
+        lock.withLock { tabs.filter { !$0.value.history.isEmpty }.keys.compactMap { $0.hasPrefix("c:") ? String($0.dropFirst(2)) : nil }.sorted() }
+    }
 
-    public func perform(_ action: BrowserAction) async throws -> BrowserSnapshot? {
+    private static func key(_ conversation: String?) -> String { conversation.map { "c:" + $0 } ?? "shared" }
+
+    public func currentSnapshot() async -> BrowserSnapshot? { await currentSnapshot(conversation: nil) }
+
+    public func currentSnapshot(conversation: String?) async -> BrowserSnapshot? {
+        lock.withLock { tabs[Self.key(conversation)]?.current }
+    }
+
+    public func perform(_ action: BrowserAction) async throws -> BrowserSnapshot? { try await perform(action, conversation: nil) }
+
+    public func perform(_ action: BrowserAction, conversation: String?) async throws -> BrowserSnapshot? {
         try lock.withLock {
             performed.append(action)
+            let key = Self.key(conversation)
+            var tab = tabs[key] ?? Tab()
+            defer { tabs[key] = tab.history.isEmpty && tab.current == nil ? nil : tab }
             func fresh(_ url: URL) -> BrowserSnapshot { counter += 1; return page(url, "s\(counter)") }
             func element(_ ref: String, _ id: String?) throws -> (BrowserSnapshot, Int) {
-                guard let current, id == nil || id == current.snapshotId,
+                guard let current = tab.current, id == nil || id == current.snapshotId,
                       let index = current.refs.firstIndex(where: { $0.ref == ref }) else { throw BrowserError.staleRef }
                 return (current, index)
             }
             switch action {
             case .open(let url):
                 guard PippaMCPBrowserTool.isAllowedURL(url) else { throw BrowserError.blockedAddress }
-                history.append(url); current = fresh(url)
+                tab.history.append(url); tab.current = fresh(url)
             case .snapshot:
-                guard let url = history.last else { throw BrowserError.nothingOpen }
-                current = fresh(url)
+                guard let url = tab.history.last else { throw BrowserError.nothingOpen }
+                tab.current = fresh(url)
             case .click(let ref, let id):
                 let (page, _) = try element(ref, id)
-                current = fresh(URL(string: page.url) ?? history.last!)
+                tab.current = fresh(URL(string: page.url) ?? tab.history.last!)
             case .fill(let ref, let text, let id):
                 var (page, index) = try element(ref, id)
                 guard page.refs[index].type?.lowercased() != "password" else { throw BrowserError.passwordField }
                 page.refs[index].value = text
-                counter += 1; page.snapshotId = "s\(counter)"; current = page
+                counter += 1; page.snapshotId = "s\(counter)"; tab.current = page
             case .select(let ref, let value, let id):
                 var (page, index) = try element(ref, id)
                 page.refs[index].value = value
-                counter += 1; page.snapshotId = "s\(counter)"; current = page
+                counter += 1; page.snapshotId = "s\(counter)"; tab.current = page
             case .form(let fields, let submit, let id):
                 var (page, _) = try element(fields[0].ref, id)
                 for field in fields {
@@ -815,17 +848,17 @@ public final class DemoBrowserOperator: BrowserOperating, @unchecked Sendable {
                     let (_, index) = try element(field.ref, id)
                     page.refs[index].value = field.text
                 }
-                counter += 1; page.snapshotId = "s\(counter)"; current = page
-                if submit != nil { current = fresh(URL(string: page.url) ?? history.last!) }
+                counter += 1; page.snapshotId = "s\(counter)"; tab.current = page
+                if submit != nil { tab.current = fresh(URL(string: page.url) ?? tab.history.last!) }
             case .back:
-                guard !history.isEmpty else { throw BrowserError.nothingOpen }
-                if history.count > 1 { history.removeLast() }
-                current = fresh(history.last!)
+                guard !tab.history.isEmpty else { throw BrowserError.nothingOpen }
+                if tab.history.count > 1 { tab.history.removeLast() }
+                tab.current = fresh(tab.history.last!)
             case .close:
-                history = []; current = nil
+                tab = Tab()
                 return nil
             }
-            return current
+            return tab.current
         }
     }
 

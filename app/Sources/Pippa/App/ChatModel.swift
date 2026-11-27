@@ -284,6 +284,7 @@ final class ChatModel: ObservableObject {
         composers[id] = nil
         undoneNotes[id] = nil
         desk.forget(id)
+        WKBrowserSession.shared.forgetConversation(id)
         store.trash(id)
         Task { await PiSession.shared.forget(id) }
     }

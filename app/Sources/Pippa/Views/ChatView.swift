@@ -50,7 +50,11 @@ struct ChatView: View {
                 .overlay { if dropFeedback.targeted { DropOverlay() } }
                 if browser.isOpen {
                     Divider()
-                    BrowserPanelView(browser: browser)
+                    BrowserPanelView(browser: browser, suggestion: browserSuggestion, conversation: chat.currentID) { key in
+                        // A tab belongs to its conversation: choosing it opens that conversation, which shows the tab.
+                        if chat.conversations.contains(where: { $0.id == key }) { chat.select(key) }
+                        else { browser.selectConversation(key == WKBrowserSession.defaultKey ? nil : key) }
+                    }
                         .frame(minWidth: 360, idealWidth: 480, maxWidth: 720)
                         .transition(.move(edge: .trailing))
                 }
@@ -111,8 +115,21 @@ struct ChatView: View {
             proactivity.openDeskRequested = false
         }
         // Any explicit chat activation (sidebar conversation, ⌘N, Open in Chat, Island, file drop) leaves "For You".
-        .onChange(of: chat.currentID) { _, _ in forYouState.wrappedValue = false }
+        // Each conversation has its own browser tab: the panel follows the chat.
+        .onAppear { browser.selectConversation(chat.currentID) }
+        .onChange(of: chat.currentID) { _, id in
+            forYouState.wrappedValue = false
+            browser.selectConversation(id)
+        }
         .onChange(of: proactivity.openChatToken) { _, _ in forYouState.wrappedValue = false }
+    }
+
+    /// The latest public page the conversation read, offered by the empty browser panel ("Open … in Pippa").
+    private var browserSuggestion: URL? {
+        for message in (chat.current?.messages ?? []).reversed() {
+            if let url = (message.sources ?? []).reversed().lazy.compactMap(SourceChips.browsable).first { return url }
+        }
+        return nil
     }
 
     /// What the latest answer read and did: shown on the panel button while the panel is closed.

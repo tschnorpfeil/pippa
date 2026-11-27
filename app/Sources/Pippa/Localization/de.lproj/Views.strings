@@ -42,6 +42,15 @@
 
 "Wait for Pippa to finish before opening a website." = "Warte, bis Pippa fertig ist, bevor du eine Webseite öffnest.";
 
+/* Browser tabs per conversation, sign-in windows, opening a page the answer read (BrowserPanelView, SourceChips). */
+"Open in Pippa’s Browser" = "In Pippas Browser öffnen";
+"Open %@ in Pippa" = "%@ in Pippa öffnen";
+"Window from %@" = "Fenster von %@";
+"New window" = "Neues Fenster";
+"Close this window and go back to the page" = "Fenster schließen und zurück zur Seite";
+"Close tab" = "Tab schließen";
+"Waiting for you" = "Wartet auf dich";
+
 /* Proactive Pippa: For You, routines. */
 "%lld days" = "%lld Tage";
 "%lld h" = "%lld Std.";

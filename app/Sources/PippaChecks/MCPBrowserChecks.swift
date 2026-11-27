@@ -639,4 +639,42 @@ func runMCPBrowserChecks() async {
             && [click, back].allSatisfy { !$0.text.contains("123456") && $0.json["untrusted"] as? Bool == true }
             && w.handoffs.value == ["captcha", "login"]
     }
+
+    await checkAsync("MCP browse A22: conversations keep separate tabs and snapshot ids; close in B leaves A; A's refs are stale in B") {
+        let w = world()
+        w.turns.end(w.turn)
+        let a = PippaMCPTurn(conversation: "A"), b = PippaMCPTurn(conversation: "B")
+        w.turns.begin(a)
+        let openA = await browse(w, ["action": "open", "url": "https://example.org/a"])
+        let idA = data(openA.json)["snapshot_id"] as? String ?? ""
+        w.turns.end(a)
+        w.turns.begin(b)
+        // B has nothing open: A's ref means nothing here, and nothing reaches the browser.
+        let reached = w.browser.actions.count
+        let refInB = await browse(w, ["action": "click", "ref": "@e1"])
+        let readInB = await browse(w, ["action": "read"])
+        let untouched = w.browser.actions.count == reached
+        let openB = await browse(w, ["action": "open", "url": "https://example.com/b"])
+        let idB = data(openB.json)["snapshot_id"] as? String ?? ""
+        let beforeStale = w.browser.actions.count
+        let idInB = await browse(w, ["action": "click", "ref": "@e1", "snapshot_id": idA])
+        let formInB = await browse(w, ["action": "form", "fields": [["ref": "@e2", "text": "x"]], "snapshot_id": idA])
+        let staleUntouched = w.browser.actions.count == beforeStale
+        let closeB = await browse(w, ["action": "close"])
+        let openAfterClose = w.browser.openConversations
+        w.turns.end(b)
+        let later = PippaMCPTurn(conversation: "A")
+        w.turns.begin(later)
+        let snapA = await browse(w, ["action": "snapshot"])
+        let currentA = await w.browser.currentSnapshot(conversation: "A")
+        let currentB = await w.browser.currentSnapshot(conversation: "B")
+        let shared = await w.browser.currentSnapshot()
+        return !openA.isError && !openB.isError && !idA.isEmpty && !idB.isEmpty && idA != idB
+            && data(openA.json)["url"] as? String == "https://example.org/a" && data(openB.json)["url"] as? String == "https://example.com/b"
+            && [refInB, readInB, idInB, formInB].allSatisfy { $0.isError && $0.json["status"] as? String == "stale_ref" && $0.json["dispatched"] as? Bool == false }
+            && untouched && staleUntouched
+            && data(closeB.json)["closed"] as? Bool == true && openAfterClose == ["A"]
+            && !snapA.isError && data(snapA.json)["url"] as? String == "https://example.org/a"
+            && currentA?.url == "https://example.org/a" && currentB == nil && shared == nil
+    }
 }

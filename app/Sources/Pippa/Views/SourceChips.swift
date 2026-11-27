@@ -2,7 +2,7 @@ import AppKit
 import PippaCore
 import SwiftUI
 
-/// What the answer read, as chips; a click opens the file or the page.
+/// What the answer read, as chips; a click opens the file or the page. A web page can also open in Pippa's browser.
 struct SourceChips: View {
     var sources: [ChatSource]
     private let shown = 3
@@ -40,6 +40,13 @@ struct SourceChips: View {
             NSWorkspace.shared.open(url)
         }
     }
+
+    /// A public web address of a source, which Pippa's own browser may open. Disabled in PIPPA_DEMO=1 (no real network).
+    static func browsable(_ source: ChatSource) -> URL? {
+        guard ProcessInfo.processInfo.environment["PIPPA_DEMO"] != "1",
+              source.kind == .web, let url = URL(string: source.location), PippaMCPBrowserTool.isAllowedURL(url) else { return nil }
+        return url
+    }
 }
 
 private struct SourceChip: View {
@@ -64,5 +71,13 @@ private struct SourceChip: View {
         .disabled(source.location.isEmpty)
         .onHover { hovering in withAnimation(Theme.quick) { hoverState.wrappedValue = hovering && !source.location.isEmpty } }
         .help(source.detail.map { "\(source.name) · \($0)" } ?? source.name)
+        .contextMenu {
+            if let url = SourceChips.browsable(source) {
+                Button(T("Open in Pippa’s Browser", table: "Views")) {
+                    let conversation = ChatModel.shared.currentID
+                    Task { await WKBrowserSession.shared.openFromBridge(url, in: conversation) }
+                }
+            }
+        }
     }
 }

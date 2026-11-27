@@ -2,6 +2,7 @@ import AppKit
 import Foundation
 import PiRPC
 import PippaCore
+import WebKit
 
 /// `Pippa --check-approvals`: the question flow without any window. Asks while a presenter is registered, answers,
 /// cancels and times out, and checks each answer reaches the waiting caller exactly once. Prints one line per check.
@@ -124,6 +125,7 @@ enum ApprovalsChecks {
         await runSteerBurstChecks(approvals, check: check)
         await runQueueChecks(check: check)
         await runPDFBesideAnswerChecks(check: check)
+        await runBrowserPoolChecks(check: check)
         failures += Int(await HeadlessAskChecks.run())
 
         print(failures == 0 ? "approvals: all checks passed" : "approvals: \(failures) failed")
@@ -876,5 +878,196 @@ enum ConversationStoreChecks {
 
         print(failures == 0 ? "conversation store: all checks passed" : "conversation store: \(failures) failed")
         return failures == 0 ? 0 : 1
+    }
+}
+
+/// A navigation as WebKit hands it to the delegate, for the browser checks (no page is loaded).
+private final class FixtureNavigationAction: WKNavigationAction {
+    private let url: URL?
+    init(_ url: URL?) { self.url = url; super.init() }
+    override var request: URLRequest { url.map { URLRequest(url: $0) } ?? URLRequest(url: URL(string: "about:blank")!) }
+    override var targetFrame: WKFrameInfo? { nil }
+}
+
+/// A response (the end of a redirect chain) for the browser checks. WebKit's own `dealloc` expects state only WebKit
+/// sets up, so each fixture stays alive until the check process exits.
+@MainActor
+private final class FixtureNavigationResponse: WKNavigationResponse {
+    private static var kept: [FixtureNavigationResponse] = []
+    private let url: URL
+    init(_ url: URL) { self.url = url; super.init(); Self.kept.append(self) }
+    override var response: URLResponse { URLResponse(url: url, mimeType: "text/html", expectedContentLength: 0, textEncodingName: nil) }
+    override var isForMainFrame: Bool { true }
+}
+
+extension ApprovalsChecks {
+    /// Pippa's browser panel without loading a page (A23, A24): one tab per conversation in a pool of at most
+    /// `maxActiveWebViews` live views, sign-in popups as real child views behind the same address guard, the online
+    /// view apart from all of it, and `front_read` pages as web sources. Also run by `--check-window-lifecycle`.
+    static func runBrowserPoolChecks(check: (Bool, String) -> Void) async {
+        let pool = WKBrowserSession.makeLocalPool()
+        // Nothing here may resolve or load: a stand-in decides which hosts are private.
+        pool.resolvesToPrivateAddress = { $0 == "intranet.example.com" }
+        pool.authorizeNavigation = { _, _, _ in true }
+        func live() -> Set<String> { Set(pool.tabs.values.filter { $0.webView != nil }.map(\.key)) }
+        @discardableResult
+        func open(_ id: String) -> WKBrowserSession.Tab {
+            let tab = pool.tab(for: id)
+            pool.materialize(tab)
+            tab.lastURL = URL(string: "https://\(id).example.com/page")
+            tab.lastTitle = "Page \(id)"
+            tab.latestSnapshot = BrowserSnapshot(snapshotId: "snap-\(id)", url: "https://\(id).example.com/page", title: "Page \(id)",
+                                                 text: "", refs: [BrowserElementRef(ref: "@e1", role: "link", name: "More")])
+            return tab
+        }
+
+        let a = open("a"), b = open("b"), c = open("c")
+        pool.selectConversation("c")
+        let snapA = await pool.currentSnapshot(conversation: "a"), snapB = await pool.currentSnapshot(conversation: "b")
+        let snapOther = await pool.currentSnapshot(conversation: "z"), snapShared = await pool.currentSnapshot()
+        check(WKBrowserSession.maxActiveWebViews == 3 && live() == ["a", "b", "c"] && pool.displayedKey == "c"
+              && snapA?.snapshotId == "snap-a" && snapB?.snapshotId == "snap-b" && snapOther == nil && snapShared == nil,
+              "browser A23: each conversation has its own tab and snapshot; no snapshot reaches another conversation")
+        let d = open("d")
+        let evictedSnapshot = await pool.currentSnapshot(conversation: "a")
+        check(live() == ["b", "c", "d"] && a.webView == nil && a.lastURL?.absoluteString == "https://a.example.com/page"
+              && a.lastTitle == "Page a" && a.latestSnapshot == nil && evictedSnapshot == nil && pool.tabs["a"] === a,
+              "browser A23: a 4th tab gives back the oldest idle tab's view, keeping its address and title, dropping its refs")
+
+        b.modelActions = 1
+        d.handoffMessage = "Sign in"
+        let e = open("e")
+        check(live() == ["b", "c", "d", "e"] && b.webView != nil && c.webView != nil && d.webView != nil,
+              "browser A23: a tab Pippa is using, the shown tab and a tab waiting for the person are never evicted")
+        // R2: an inactive tab with an open OAuth popup (even without a handoff banner) is also never evicted.
+        d.handoffMessage = nil
+        let dPopup = pool.webView(d.webView!, createWebViewWith: WKWebViewConfiguration(),
+                                  for: FixtureNavigationAction(URL(string: "https://auth.example.com/login")),
+                                  windowFeatures: WKWindowFeatures())
+        b.modelActions = 0
+        let f = open("f")
+        check(dPopup != nil && d.popupWebView === dPopup && live() == ["c", "d", "f"] && b.webView == nil && e.webView == nil,
+              "browser A23: an inactive tab with an open sign-in popup is never evicted while idle tabs give back their views")
+        if let dPopup { pool.webViewDidClose(dPopup) }
+        let g = open("g")
+        check(live() == ["c", "f", "g"] && d.webView == nil,
+              "browser A23: once its popup closes, an idle tab gives back its view when the pool grows")
+
+        // R3: switching conversations while the panel is closed never opens the panel or auto-restores an evicted tab.
+        pool.isOpen = false
+        pool.selectConversation("a")
+        check(!pool.isOpen && pool.displayedKey == "a" && pool.restorableURL?.absoluteString == "https://a.example.com/page"
+              && pool.shownWebView == nil && pool.tabItems.map(\.id) == ["a", "b", "c", "d", "e", "f", "g"],
+              "browser A23: switching chats while the panel is closed shows that tab without opening the panel")
+        // R4: deleting a conversation discards its tab and closes the panel if it was shown.
+        pool.isOpen = true
+        pool.selectConversation("g")
+        pool.forgetConversation("g")
+        check(pool.tabs["g"] == nil && !pool.isOpen && pool.displayedKey == WKBrowserSession.defaultKey,
+              "browser A23: forgetting a deleted conversation discards its tab and closes the panel if shown")
+
+        pool.resolvesToPrivateAddress = { $0 == "intranet.example.com" }
+        f.modelActions = 1
+        pool.closeTab("f")
+        let acting = pool.tabs["f"] === f
+        f.modelActions = 0
+        pool.closeTab("e")
+        _ = try? await pool.perform(.close, conversation: "c")
+        check(acting && pool.tabs["e"] == nil && pool.tabs["c"] == nil && pool.tabs["f"]?.webView != nil && pool.tabs["a"] === a,
+              "browser A23: closing one conversation's tab leaves the others; a tab Pippa is using stays open")
+
+        // R1: cross-conversation navigation authorization never bleeds another conversation's active turn or prompts inside it.
+        let turns = PippaMCPTurns()
+        let approvals = PippaMCPBrowserApprovals()
+        let turnB = PippaMCPTurn(conversation: "conv-b")
+        turns.begin(turnB)
+        approvals.approve("b.example.com", turn: turnB.id)
+        var prompted = 0
+        let confirm: (String, String) async -> Bool = { _, _ in prompted += 1; return false }
+        let otherIdle = await PippaMCPService.authorizeLocalNavigation(
+            url: URL(string: "https://b.example.com/path")!, tabKey: "conv-a", personsStep: false,
+            turns: turns, approvals: approvals, confirm: confirm)
+        let otherHandoff = await PippaMCPService.authorizeLocalNavigation(
+            url: URL(string: "https://login.example.com/")!, tabKey: "conv-a", personsStep: true,
+            turns: turns, approvals: approvals, confirm: confirm)
+        let ownApproved = await PippaMCPService.authorizeLocalNavigation(
+            url: URL(string: "https://b.example.com/other")!, tabKey: "conv-b", personsStep: false,
+            turns: turns, approvals: approvals, confirm: confirm)
+        let ownNewHost = await PippaMCPService.authorizeLocalNavigation(
+            url: URL(string: "https://new.example.com/")!, tabKey: "conv-b", personsStep: false,
+            turns: turns, approvals: approvals, confirm: confirm)
+        turns.end(turnB)
+        check(!otherIdle && otherHandoff && ownApproved && !ownNewHost && prompted == 1,
+              "browser A23: navigation approval is scoped to the active turn's conversation; other tabs never borrow or prompt inside it")
+
+        // A24: sign-in popups are real child views; every address they load passes the same guard as the tab.
+        pool.selectConversation("p")
+        let p = pool.tab(for: "p")
+        let opener = pool.materialize(p)
+        let other = pool.tab(for: "q")
+        func popup() -> WKWebView? {
+            pool.webView(opener, createWebViewWith: WKWebViewConfiguration(), for: FixtureNavigationAction(URL(string: "https://accounts.example.com/oauth")),
+                         windowFeatures: WKWindowFeatures())
+        }
+        let bad = ["file:///etc/hosts", "http://127.0.0.1/", "http://localhost:8080/callback", "https://intranet.example.com/login"]
+        var refused = true
+        for address in bad.prefix(3) {
+            p.blockedNavigation = false
+            let none = pool.webView(opener, createWebViewWith: WKWebViewConfiguration(), for: FixtureNavigationAction(URL(string: address)),
+                                    windowFeatures: WKWindowFeatures())
+            refused = refused && none == nil && p.blockedNavigation && p.popupWebView == nil
+        }
+        check(refused, "browser A24: a popup to a file, this Mac or localhost is refused before any view exists")
+        var guarded = true
+        for address in bad {
+            guard let child = popup() else { guarded = false; continue }
+            p.blockedNavigation = false
+            let redirect = await pool.webView(child, decidePolicyFor: FixtureNavigationResponse(URL(string: address)!))
+            let stayed = p.popupWebView === child
+            let navigation = await pool.webView(child, decidePolicyFor: FixtureNavigationAction(URL(string: address)))
+            guarded = guarded && redirect == .cancel && stayed && navigation == .cancel && p.blockedNavigation && p.popupWebView == nil
+        }
+        check(guarded, "browser A24: in a popup, redirects and navigations to a file, 127.0.0.1, localhost or a private-DNS host are refused")
+        let child = popup()
+        var allowed: WKNavigationResponsePolicy?
+        if let child { allowed = await pool.webView(child, decidePolicyFor: FixtureNavigationResponse(URL(string: "https://accounts.example.com/done")!)) }
+        check(child != nil && p.popupWebView === child && child?.navigationDelegate === pool && child?.uiDelegate === pool
+              && pool.shownWebView === child && pool.popupHost != nil && allowed == .allow && other.popupWebView == nil,
+              "browser A24: a public sign-in popup opens as its tab's own child view, shown in the panel, with the same delegates")
+        if let child { pool.webViewDidClose(child) }
+        let closedItself = p.popupWebView == nil && pool.shownWebView === opener && pool.popupHost == nil
+        _ = popup()
+        pool.closePopup()
+        check(closedItself && p.popupWebView == nil && pool.shownWebView === opener,
+              "browser A24: a popup that closes itself, or that the person closes, returns the panel to its page")
+
+        // A24: the online view stays apart: nonpersistent, one view, no popups, no tabs.
+        if let online = WKBrowserSession.makeOnline() {
+            online.resolvesToPrivateAddress = { _ in true }
+            let store = online.webView.configuration.websiteDataStore
+            online.selectConversation("p")
+            let none = online.webView(online.webView, createWebViewWith: WKWebViewConfiguration(),
+                                      for: FixtureNavigationAction(URL(string: "https://accounts.example.com/oauth")), windowFeatures: WKWindowFeatures())
+            let localStore = opener.configuration.websiteDataStore
+            check(!store.isPersistent && store !== WKWebsiteDataStore.default() && localStore === WKWebsiteDataStore.default()
+                  && localStore.isPersistent && none == nil && online.tab(for: "p") === online.tab(for: nil)
+                  && online.tabs.count == 1 && online.tab(for: nil).popupWebView == nil && pool.tabs.values.allSatisfy { $0.webView !== online.webView },
+                  "browser A24: the online view is nonpersistent, apart from local tabs and the default store, and never opens a popup")
+        } else {
+            print("SKIP browser A24: this WebKit cannot disable managed sign-in, so online browsing is unavailable")
+        }
+
+        // A24: a page open in front (`front_read`) is a web source only at a public address.
+        func front(_ data: String) -> ChatSource? { SourceLog.source(tool: "mcp__pippa__front_read", arguments: "{}", result: #"{"data":\#(data)}"#) }
+        let page = front(#"{"app":"Safari","title":"Öffnungszeiten","url":"https://www.example.com/hours","text":"Mo–Fr"}"#)
+        let untitled = front(#"{"app":"Safari","title":"","url":"https://www.example.com/hours"}"#)
+        let local = ["http://192.168.1.1/", "http://localhost:3000/", "file:///Users/me/Report.pdf", "http://127.0.0.1/", "not a url"].map {
+            front(#"{"app":"Safari","title":"Router","url":"\#($0)"}"#)
+        }
+        let document = front(#"{"app":"Preview","title":"Report.pdf","path":"/Users/me/Report.pdf"}"#)
+        check(page == ChatSource(kind: .web, name: "Öffnungszeiten", location: "https://www.example.com/hours", detail: "Safari")
+              && untitled?.name == "example.com" && local.allSatisfy { $0 == nil } && document == nil
+              && SourceChips.browsable(page!) != nil,
+              "browser A24: front_read of a public page is a web source; this Mac, its network and documents are not")
     }
 }

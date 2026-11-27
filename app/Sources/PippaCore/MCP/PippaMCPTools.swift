@@ -251,7 +251,9 @@ public struct PippaMCPTools: Sendable {
             browserHost.browserApprovals = online.approvals
             browserHost.onBrowserHandoff = nil
         }
-        var (outcome, note) = await PippaMCPBrowserTool(host: browserHost, turn: context.turn?.id, writes: context.writes).call(arguments)
+        // Each conversation browses in its own tab: its pages, refs and snapshot ids never reach another conversation.
+        var (outcome, note) = await PippaMCPBrowserTool(host: browserHost, turn: context.turn?.id, conversation: context.turn?.writes.conversation,
+                                                        writes: context.writes).call(arguments)
         defer {
             note.turnID = context.turn?.id
             host.onRead?(note)
