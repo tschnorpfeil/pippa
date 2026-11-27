@@ -35,6 +35,9 @@ final class FakeMailSend: MailSending, @unchecked Sendable {
     var beforeSend: (@Sendable (Int) async -> Void)?
     /// Mail answers the send event with true and sends nothing: the window stays open (seen on a just-made draft).
     var keepsOpen = false
+    /// Optional one-shot overrides for `insertDraft` (used to test `.replyNeedsPaste` and insert failures).
+    var nextInsertResult: MailInsertResult?
+    var nextInsertError: Error?
 
     var sendCount: Int { lock.withLock { sends } }
     var sendCallCount: Int { lock.withLock { sendCalls } }
@@ -46,13 +49,17 @@ final class FakeMailSend: MailSending, @unchecked Sendable {
 
     func insertDraft(_ draft: MailDraft) async throws -> MailDraftInsert {
         try PippaMCPWriteLease.current?.beginDispatch()
+        if let error = lock.withLock({ let e = nextInsertError; nextInsertError = nil; return e }) {
+            throw error
+        }
+        let forcedResult = lock.withLock { let r = nextInsertResult; nextInsertResult = nil; return r }
         let id: Int = lock.withLock {
             let id = nextID; nextID += 1
             windows[id] = MailOutgoing(sender: "Pippa Check <me@example.test>", subject: draft.replySubject, body: draft.body,
                                        to: draft.to.map { [$0] } ?? [])
             return id
         }
-        return MailDraftInsert(result: draft.isReply ? .reply : .newMessage, outgoingID: id, mailProcess: lock.withLock { process })
+        return MailDraftInsert(result: forcedResult ?? (draft.isReply ? .reply : .newMessage), outgoingID: id, mailProcess: lock.withLock { process })
     }
 
     func outgoing(_ id: Int, process: Int32) async throws -> MailOutgoingLookup {
@@ -507,5 +514,74 @@ func runMCPMailSendChecks() async {
             && receipt?.outcome == "done" && receipt?.canUndo == false && receipt?.created == nil
             && english.hasPrefix("Mail sent to anna@example.test") && german.hasPrefix("Mail an anna@example.test")
             && german.hasSuffix("gesendet")
+    }
+
+    // A11: mail_draft (reply and new email) delivers ResultCard.mailDraft via onRead and round-trips inside ActionReceipt.
+    await checkAsync("Mail draft card (A11): reply and new email deliver ResultCard.mailDraft via onRead and round-trip via Codable") {
+        let world = World(answer: yes)
+        let notes = LockedBox<[PippaMCPReadNote]>([])
+        let receipts = LockedBox<[PippaMCPWriteReceipt]>([])
+        world.host.onRead = { note in notes.mutate { $0.append(note) } }
+        world.host.onWrite = { receipt in receipts.mutate { $0.append(receipt) } }
+
+        let replyBody = "Hallo,\n\nich habe das Dokument geprüft.\n\nViele Grüße"
+        let replyCall = await context.call(world.tools, "mail_draft", ["reply_to": "selected", "body": replyBody])
+        let replyID = (replyCall.json["draft"] as? [String: Any])?["id"] as? String
+
+        let newBody = "Hallo Anna,\n\npasst dir Freitag um 10 Uhr?"
+        let newCall = await context.call(world.tools, "mail_draft", ["to": "anna@example.test", "subject": "Termin am Freitag", "body": newBody])
+        let newID = (newCall.json["draft"] as? [String: Any])?["id"] as? String
+
+        let delivered = notes.value
+        guard delivered.count == 2,
+              case .mailDraft(let replyCard)? = delivered[0].card,
+              case .mailDraft(let newCard)? = delivered[1].card else { return false }
+
+        let actionReceipt = ActionReceipt(items: [], cards: [.mailDraft(replyCard), .mailDraft(newCard)])
+        let round = (try? JSONEncoder().encode(actionReceipt)).flatMap { try? JSONDecoder().decode(ActionReceipt.self, from: $0) }
+
+        return !replyCall.isError && !newCall.isError
+            && delivered.allSatisfy { $0.tool == "mail_draft" && $0.read && $0.turnID == world.turn.id }
+            && replyCard.status == .saved && replyCard.isReply && replyCard.body == replyBody
+            && replyCard.recipient != nil && !replyCard.subject.isEmpty && replyCard.draftID == replyID && replyID != nil
+            && newCard.status == .opened && !newCard.isReply && newCard.recipient == "anna@example.test"
+            && newCard.recipientAddress == nil && newCard.subject == "Termin am Freitag" && newCard.body == newBody
+            && newCard.draftID == newID && newID != nil
+            && receipts.value.count == 2 && receipts.value.allSatisfy { $0.action == "mailDraft" && $0.outcome == "done" }
+            && round?.cards == [.mailDraft(replyCard), .mailDraft(newCard)]
+    }
+
+    // A12: failed or unclear mail_draft emits no card; replyNeedsPaste emits .needsPaste with full body preserved.
+    await checkAsync("Mail draft card (A12): failed and unclear mail_draft emit no card; replyNeedsPaste emits .needsPaste with full body") {
+        let world = World(answer: yes)
+        let notes = LockedBox<[PippaMCPReadNote]>([])
+        let receipts = LockedBox<[PippaMCPWriteReceipt]>([])
+        world.host.onRead = { note in notes.mutate { $0.append(note) } }
+        world.host.onWrite = { receipt in receipts.mutate { $0.append(receipt) } }
+
+        // 1. Failed insert (missingOriginal)
+        world.fake.nextInsertError = MailReplyFailure.missingOriginal
+        let failedCall = await context.call(world.tools, "mail_draft", ["reply_to": "selected", "body": "Antwort"])
+
+        // 2. Unclear insert (unconfirmed)
+        world.fake.nextInsertError = MailReplyFailure.unconfirmed
+        let unclearCall = await context.call(world.tools, "mail_draft", ["reply_to": "selected", "body": "Antwort"])
+
+        let notesAfterFailures = notes.value.count
+
+        // 3. replyNeedsPaste
+        let pasteBody = "Hallo,\n\nbitte diesen Text einfügen.\n\nDanke!"
+        world.fake.nextInsertResult = .replyNeedsPaste
+        let pasteCall = await context.call(world.tools, "mail_draft", ["reply_to": "selected", "body": pasteBody])
+
+        guard notesAfterFailures == 0,
+              notes.value.count == 1,
+              case .mailDraft(let pasteCard)? = notes.value[0].card else { return false }
+
+        let outcomes = receipts.value.filter { $0.action == "mailDraft" }.map(\.outcome)
+        return failedCall.isError && unclearCall.json["state"] as? String == "unclear"
+            && !pasteCall.isError && pasteCall.json["state"] as? String == "opened_text_unconfirmed"
+            && outcomes == ["failed", "unclear", "done"]
+            && pasteCard.status == .needsPaste && pasteCard.isReply && pasteCard.body == pasteBody && pasteCard.draftID == nil
     }
 }

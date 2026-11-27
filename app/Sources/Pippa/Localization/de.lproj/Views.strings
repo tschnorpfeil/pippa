@@ -181,3 +181,16 @@
 "Your routines" = "Deine Routinen";
 "in For You and Pippa Island" = "in „Für dich“ und Pippa Island";
 "quietly in For You" = "still in „Für dich“";
+
+/* Mail draft preview card (MailCardView.swift) */
+"Draft in Mail, not sent" = "Entwurf in Mail, nicht gesendet";
+"Email open in Mail, not sent" = "E-Mail in Mail offen, nicht gesendet";
+"Reply open in Mail — paste text" = "Antwort in Mail offen – Text einfügen";
+"Not sent" = "Nicht gesendet";
+"Paste in Mail" = "In Mail einfügen";
+"To" = "An";
+"Subject" = "Betreff";
+"Mail didn’t confirm the text. Copy it below and paste it into the open reply." = "Mail hat den Text nicht bestätigt. Kopier ihn unten und füg ihn in die offene Antwort ein.";
+"Show full draft" = "Ganzen Entwurf zeigen";
+"Copy text" = "Text kopieren";
+"Copied" = "Kopiert";

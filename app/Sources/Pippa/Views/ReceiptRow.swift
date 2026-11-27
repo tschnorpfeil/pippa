@@ -103,6 +103,11 @@ struct ReceiptRow: View {
         }
     }
 
+    /// Indices of receipts already represented one-to-one by a card on the same message.
+    static func coveredIndices(receipts: [PippaMCPWriteReceipt], cards: [ResultCard]) -> Set<Int> {
+        ResultCard.coveredReceiptIndices(receipts: receipts, cards: cards)
+    }
+
     /// With PIPPA_DEMO=1 nothing (no real apps).
     private static func bringForward(_ integration: Integration) {
         guard ProcessInfo.processInfo.environment["PIPPA_DEMO"] != "1",

@@ -219,6 +219,11 @@ public struct PippaMCPTools: Sendable {
             if PippaMCPWriteTools.names.contains(name) {
                 let outcome = await PippaMCPWriteTools(host: host, scope: context.writes).call(name, arguments)
                 if let receipt = outcome.receipt { host.onWrite?(receipt) }
+                if let card = outcome.card, !outcome.isError, !context.writes.snapshot.cancelled {
+                    var note = PippaMCPReadNote(tool: name, read: true, line: outcome.receipt?.name ?? name, card: card)
+                    note.turnID = context.turn?.id
+                    host.turns.whileActive(context.turn, generation: context.turnGeneration) { host.onRead?(note) }
+                }
                 let visible = host.egress?.scrubWriter(name, outcome) ?? outcome
                 return Self.toolResult(id: id, visible.text, isError: visible.isError)
             }
