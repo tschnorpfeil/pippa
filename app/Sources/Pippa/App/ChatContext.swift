@@ -52,6 +52,16 @@ enum SourceLog {
         case "fetch_content":
             guard let url = (args["url"] as? String) ?? (args["urls"] as? [String])?.first, let host = URL(string: url)?.host() else { return nil }
             return ChatSource(kind: .web, name: host.hasPrefix("www.") ? String(host.dropFirst(4)) : host, location: url)
+        case "front_read":
+            // The page open in front (Safari, Chrome): a web source only for a public address, which Pippa's browser
+            // can open too. Documents and pages on this Mac or its network leave no chip.
+            guard let result, let object = (try? JSONSerialization.jsonObject(with: Data(result.utf8))) as? [String: Any],
+                  let data = object["data"] as? [String: Any], let text = data["url"] as? String,
+                  let url = URL(string: text), PippaMCPBrowserTool.isAllowedURL(url),
+                  let host = PippaMCPBrowserTool.normalizedHost(url) else { return nil }
+            let title = (data["title"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            return ChatSource(kind: .web, name: title.isEmpty ? (host.hasPrefix("www.") ? String(host.dropFirst(4)) : host) : title,
+                              location: url.absoluteString, detail: data["app"] as? String)
         default:
             return nil
         }

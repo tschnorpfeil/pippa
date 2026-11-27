@@ -343,3 +343,13 @@
 "Save as routine…" = "Als Routine sichern …";
 "Watching quietly" = "Achtet in Ruhe";
 "What Pippa prepared for you" = "Was Pippa für dich vorbereitet hat";
+
+/* Sending while another conversation answers, follow-ups and One PDF beside an answer (ChatModel, Composer). */
+"Making one PDF…" = "Ein PDF entsteht …";
+"Follow-up sent" = "Nachtrag gesendet";
+"Queued" = "Wartet";
+"Take the message back to edit it; nothing is sent" = "Holt die Nachricht zurück zum Bearbeiten; es wird nichts gesendet";
+"Goes out when Pippa has finished the other answer" = "Geht raus, sobald Pippa mit der anderen Antwort fertig ist";
+"Send when Pippa has finished the other answer" = "Senden, sobald Pippa mit der anderen Antwort fertig ist";
+"Files for the online AI need a check first. Send them once Pippa has finished the other answer." = "Dateien für die Online-KI prüfst du erst. Schick sie, sobald Pippa mit der anderen Antwort fertig ist.";
+"The AI settings changed while your message waited. Check it and send it again." = "Die KI-Einstellungen haben sich geändert, während deine Nachricht gewartet hat. Prüf sie und schick sie noch einmal.";

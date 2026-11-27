@@ -34,16 +34,26 @@ enum PippaMCPService {
 
     static func cancelNativeTurn() { currentHost.turns.active?.cancelWrites() }
 
-    /// Photos and PDFs into one PDF without the model: the same tool Pi calls, started by a button.
+    /// Photos and PDFs into one PDF without the model: the same tool Pi calls, started by a button. It runs in a turn
+    /// registry of its own, never in `currentHost.turns`: beginning there would cancel a running answer's writes, and
+    /// that answer's Stop never reaches this job. Cancelling the calling task stops it.
     static func makePDF(_ files: [URL]) async -> (card: ResultCard?, text: String, failed: Bool) {
         let turn = PippaMCPTurn()
-        begin(turn)
+        var host = currentHost
+        host.turns = PippaMCPTurns()
+        host.onWrite = nil
+        host.onRead = nil
+        host.turns.begin(turn)
         defer {
-            end(turn)
+            host.turns.end(turn)
             // Its receipts belong to no chat answer: collected here, so they never land under the next one.
             _ = writeNotes.take(turnID: turn.id, at: \.turnID)
         }
-        let result = await PippaMCPFilePreparation(host: currentHost, turn: turn, scope: turn.writes).call(["paths": files.map(\.path)])
+        let preparation = PippaMCPFilePreparation(host: host, turn: turn, scope: turn.writes)
+        let paths = files.map(\.path)
+        let result = await withTaskCancellationHandler {
+            await preparation.call(["paths": paths])
+        } onCancel: { turn.cancelWrites() }
         let note = PippaMCPFilePreparation.readNote(for: result, turnID: turn.id)
         return (note.card, note.line, result.isError)
     }
@@ -153,19 +163,18 @@ enum PippaMCPService {
             let session = WKBrowserSession.shared
             let approvals = fresh.browserApprovals
             let turns = fresh.turns
-            session.authorizeNavigation = { url in
-                guard PippaMCPBrowserTool.normalizedHost(url) != nil else { return false }
-                // Once Pippa handed off login/2FA/CAPTCHA to the human outside an active turn, allow their clicks.
-                if turns.active == nil, session.handoffMessage != nil { return true }
-                guard let turn = turns.active else { return false }
-                return await authorizeNavigation(url, turn: turn, approvals: approvals, isCurrent: { true }) { title, message in
+            session.authorizeNavigation = { url, tabKey, personsStep in
+                await authorizeLocalNavigation(url: url, tabKey: tabKey, personsStep: personsStep, turns: turns, approvals: approvals) { title, message in
                     await confirmBrowser(title: title, message: message, asksForAccess: asksForAccess)
                 }
             }
             fresh.browser = session
+            // The banner goes to the tab of the conversation whose answer asked for it.
             fresh.onBrowserHandoff = { _, _ in
+                let conversation = turns.active?.writes.conversation
                 Task { @MainActor in
-                    WKBrowserSession.shared.showHandoff(T("Please sign in or finish the check here. Pippa never sees your password. Click Done, then tell Pippa to continue.", table: "App"))
+                    WKBrowserSession.shared.showHandoff(T("Please sign in or finish the check here. Pippa never sees your password. Click Done, then tell Pippa to continue.", table: "App"),
+                                                        conversation: conversation)
                 }
             }
         }
@@ -260,7 +269,7 @@ enum PippaMCPService {
             egress.onlineBrowser = PippaMCPOnlineBrowser(approvals: approvals) { turn in
                 if demo { return DemoBrowserOperator() }
                 guard let session = WKBrowserSession.makeOnline() else { return nil }
-                session.authorizeNavigation = { url in
+                session.authorizeNavigation = { url, _, _ in
                     await authorizeNavigation(url, turn: turn, approvals: approvals, isCurrent: { turns.active === turn }) { title, message in
                         await confirm?("open", title, message) == true
                     }
@@ -270,6 +279,20 @@ enum PippaMCPService {
         }
         host.egress = egress
         return host
+    }
+
+    /// Navigation check for one local tab: only the conversation whose turn is running uses its approvals; any other
+    /// tab cannot borrow that turn, and a human handoff click in another tab stays allowed without prompting here.
+    static func authorizeLocalNavigation(url: URL, tabKey: String, personsStep: Bool, turns: PippaMCPTurns,
+                                         approvals: PippaMCPBrowserApprovals,
+                                         confirm: (_ title: String, _ message: String) async -> Bool) async -> Bool {
+        guard PippaMCPBrowserTool.isAllowedURL(url), PippaMCPBrowserTool.normalizedHost(url) != nil else { return false }
+        let activeTurn = turns.active.flatMap { turn -> PippaMCPTurn? in
+            let key = turn.writes.conversation ?? WKBrowserSession.defaultKey
+            return key == tabKey ? turn : nil
+        }
+        guard let turn = activeTurn else { return personsStep }
+        return await authorizeNavigation(url, turn: turn, approvals: approvals, isCurrent: { turns.active === turn }, confirm: confirm)
     }
 
     /// One main-frame destination or popup in `turn`: a host approved earlier in the turn passes, any other asks the

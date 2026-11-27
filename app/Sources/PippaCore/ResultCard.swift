@@ -6,10 +6,95 @@ import Foundation
 public enum ResultCard: Codable, Sendable, Equatable {
     case calendar(CalendarCard)
     case mail(MailCard)
+    case mailDraft(MailDraftCard)
     case photos(PhotoCard)
     case reminders(ReminderCard)
     case web(WebSourcesCard)
     case preparedFiles(PreparedFilesCard)
+
+    /// Indices of `receipts` already represented one-to-one by a card on the same message.
+    /// Only successful `mailDraft` receipts can be covered by `.mailDraft` cards, at most one receipt per card.
+    public static func coveredReceiptIndices(receipts: [PippaMCPWriteReceipt], cards: [ResultCard]) -> Set<Int> {
+        var remaining = cards.compactMap { card -> MailDraftCard? in
+            if case .mailDraft(let draft) = card { return draft }
+            return nil
+        }
+        guard !remaining.isEmpty else { return [] }
+        var covered = Set<Int>()
+        for (index, receipt) in receipts.enumerated() where receipt.action == "mailDraft" && receipt.outcome == "done" {
+            if let exact = remaining.firstIndex(where: { PippaMCPWriteTools.quoted($0.subject) == receipt.name }) {
+                remaining.remove(at: exact)
+                covered.insert(index)
+            }
+        }
+        guard !remaining.isEmpty else { return covered }
+        for (index, receipt) in receipts.enumerated()
+        where !covered.contains(index) && receipt.action == "mailDraft" && receipt.outcome == "done" && !remaining.isEmpty {
+            remaining.removeFirst()
+            covered.insert(index)
+        }
+        return covered
+    }
+}
+
+/// An unsent Mail draft created by `mail_draft`: recipient, subject, full draft body, status, and optional draft id.
+/// Built from Pippa's own tool inputs and Mail's insert result, never from model text.
+public struct MailDraftCard: Codable, Sendable, Equatable {
+    public enum Status: String, Codable, Sendable, Equatable {
+        case saved
+        case opened
+        case needsPaste
+    }
+
+    /// Display name if available, otherwise the email address; `nil` when Mail keeps thread recipients or none was given.
+    public var recipient: String?
+    /// Normalized email address when distinct from `recipient`.
+    public var recipientAddress: String?
+    public var subject: String
+    /// The actual draft body text, preserving newlines and paragraphs.
+    public var body: String
+    public var status: Status
+    public var isReply: Bool
+    public var draftID: String?
+    public var footer: String
+
+    public init(recipient: String?, recipientAddress: String? = nil, subject: String, body: String,
+                status: Status, isReply: Bool, draftID: String? = nil,
+                footer: String = L("Mail on this Mac · not sent", table: "MCP")) {
+        self.recipient = recipient.map { MailCard.line($0, 120) }.flatMap { $0.isEmpty ? nil : $0 }
+        let normalizedAddress = recipientAddress.map { MailCard.line($0, 120) }.flatMap { $0.isEmpty ? nil : $0 }
+        if let recipient = self.recipient, let normalizedAddress,
+           normalizedAddress.caseInsensitiveCompare(recipient) != .orderedSame {
+            self.recipientAddress = normalizedAddress
+        } else {
+            self.recipientAddress = nil
+        }
+        self.subject = MailCard.line(subject, 200)
+        self.body = body
+        self.status = status
+        self.isReply = isReply
+        self.draftID = draftID
+        self.footer = footer
+    }
+
+    public init(draft: MailDraft, result: MailInsertResult, draftID: String?) {
+        let name = draft.keepMailRecipients ? nil : draft.toName.map { MailCard.line($0, 120) }.flatMap { $0.isEmpty ? nil : $0 }
+        let address = draft.keepMailRecipients ? nil : draft.to.map { MailCard.line($0, 120) }.flatMap { $0.isEmpty ? nil : $0 }
+        let mappedStatus: Status = switch result {
+        case .reply: .saved
+        case .newMessage: .opened
+        case .replyNeedsPaste: .needsPaste
+        }
+        self.init(
+            recipient: name ?? address,
+            recipientAddress: name != nil ? address : nil,
+            subject: draft.replySubject,
+            body: draft.body,
+            status: mappedStatus,
+            isReply: draft.isReply,
+            draftID: draftID
+        )
+    }
 }
 
 /// Mails a search found: sender, subject, date, the start of the text; a click opens the mail in Mail.

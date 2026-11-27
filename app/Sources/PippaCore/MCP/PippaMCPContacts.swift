@@ -90,7 +90,7 @@ public struct PippaMCPContactsTool: Sendable {
             let matches = try await store.search(query: query, limit: limit)
             var items: [[String: Any]] = []
             var usedBytes = 0
-            let budget = PippaMCPTools.maxResultBytes - 1400
+            let budget = PippaMCPTools.structuredMaxResultBytes - 1400
             for contact in matches {
                 var entry: [String: Any] = ["name": String(contact.name.prefix(120))]
                 if let org = contact.organization, !org.isEmpty { entry["organization"] = String(org.prefix(120)) }
@@ -109,7 +109,7 @@ public struct PippaMCPContactsTool: Sendable {
                 "truncated": matches.count > items.count,
             ]
             return PippaMCPTools.bounded(source: "Contacts on this Mac", data: data,
-                                         next: "Use only the contact details shown. If contacts is empty, no matching contact was found.")
+                                         next: "Use only the contact details shown. If contacts is empty, no matching contact was found.", structured: true)
         } catch PippaError.accessDenied {
             return Self.blocked("denied", Self.deniedContacts, repair: .contacts)
         } catch {

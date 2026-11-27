@@ -15,7 +15,7 @@ extension PippaMCPTools {
             }
             let source = digest.removeValue(forKey: "source") as? String ?? "Calendar on this Mac"
             var result = Self.bounded(source: source, data: digest,
-                                      next: "The person sees these appointments as a card under your answer. Do not list them again; answer the question in one or two sentences. Copy any day, time or state you mention exactly; do not compute them. If days is empty, nothing is in the calendar for this period.")
+                                      next: "The person sees these appointments as a card under your answer. Do not list them again; answer the question in one or two sentences. Copy any day, time or state you mention exactly; do not compute them. If days is empty, nothing is in the calendar for this period.", structured: true)
             result.card = reply.card.map(ResultCard.calendar)
             return result
         case .invalidRange:
@@ -48,7 +48,7 @@ extension PippaMCPTools {
             }
             var result = Self.bounded(source: "Reminders on this Mac", data: ["reminders": items, "shown": items.count, "total": fetch.total,
                                                                                "truncated": fetch.total > items.count],
-                                      next: "If reminders is not empty, the person sees them as a card under your answer: do not list them again; answer in one or two sentences, copying any due date you mention exactly. If the list is empty, there are no open reminders for this period.")
+                                      next: "If reminders is not empty, the person sees them as a card under your answer: do not list them again; answer in one or two sentences, copying any due date you mention exactly. If the list is empty, there are no open reminders for this period.", structured: true)
             if !fetch.items.isEmpty {
                 result.card = .reminders(ReminderCard(days: input.days, reminders: fetch.items, total: fetch.total, now: now, calendar: cal))
             }

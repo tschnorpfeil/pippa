@@ -93,7 +93,13 @@
 "Online" = "Online";
 /* First-run choice: the AI on this Mac or an online AI (SetupCard, OnlineSetupSheet). */
 "Use an Online AI" = "Online-KI verwenden";
-"No download. What you type goes to the provider you choose. Before anything from Mail, documents, Calendar, Reminders or Photos goes along, Pippa shows you the exact text. You can switch back to this Mac at any time in Settings." = "Kein Download. Was du schreibst, geht an den Anbieter, den du wählst. Bevor etwas aus Mail, Dokumenten, Kalender, Erinnerungen oder Fotos mitgeht, zeigt dir Pippa den genauen Text. In den Einstellungen kannst du jederzeit zu diesem Mac zurückwechseln.";
+"Recommended" = "Empfohlen";
+"This Mac" = "Dieser Mac";
+"Chosen provider" = "Gewählter Anbieter";
+"Data flow: This Mac directly to %@" = "Datenweg: Dieser Mac direkt zu %@";
+"Direct to the provider, no middleman" = "Direkt zum Anbieter, ohne Zwischenstelle";
+"Mail, files, Calendar, Reminders & Photos only after you review" = "Mail, Dateien, Kalender, Erinnerungen & Fotos nur nach deiner Prüfung";
+"Switch back to this Mac anytime" = "Jederzeit zurück zu diesem Mac";
 "The download for this Mac keeps going." = "Der Download für diesen Mac läuft weiter.";
 "More Providers and Models…" = "Weitere Anbieter und Modelle …";
 "Sign in to %@" = "Bei %@ anmelden";

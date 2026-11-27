@@ -213,8 +213,9 @@ extension PippaMCPWriteTools {
         if let draftID { data["id"] = draftID }
         let sendable = draftID == nil ? "" : " Only if the person asks to send it: mail_send with draft.id."
         return PippaMCPToolResult(text: PippaMCPTools.json(["done": true, "state": state, "sent": false, "draft": data, "next": next + sendable]),
-                                  isError: false, receipt: receipt("done", reason))
+                                  isError: false, receipt: receipt("done", reason),
+                                  card: .mailDraft(MailDraftCard(draft: draft, result: result, draftID: draftID)))
     }
 
-    static func quoted(_ subject: String) -> String { L("“%@”", table: "MCP", singleLine(subject, max: 80)) }
+    public static func quoted(_ subject: String) -> String { L("“%@”", table: "MCP", singleLine(subject, max: 80)) }
 }

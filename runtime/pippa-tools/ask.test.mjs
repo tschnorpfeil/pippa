@@ -32,6 +32,13 @@ test("their own words: the extra choice opens a text field; no choices asks in w
 	assert.deepEqual(open.shown, [{ input: "Wohin geht die Reise?" }]);
 });
 
+test("one-card inline free text: a custom value returned directly from select skips ui.input", async () => {
+	const ui = card("  Lena from work  ");
+	const text = await ask({ question: "Which Lena?", choices: ["Lena B.", "Lena K.", "Lena M.", "Lena S."] }, ui, "en");
+	assert.equal(text, 'The person answered: "Lena from work". Go on with that; do not ask again about the same thing.');
+	assert.deepEqual(ui.shown, [{ select: "Which Lena?", options: ["Lena B.", "Lena K.", "Lena M.", "Lena S.", "Something else…"] }]);
+});
+
 test("a closed card, an empty answer or no app: never ask again, go on and name the assumption", async () => {
 	for (const answers of [[undefined], ["Etwas anderes …", undefined], ["Etwas anderes …", "   "]]) {
 		const text = await ask({ question: "Welche?", choices: ["A", "B"] }, card(...answers), "de");

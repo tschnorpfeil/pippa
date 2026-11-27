@@ -93,7 +93,13 @@
 "Online" = "Online";
 /* First-run choice: the AI on this Mac or an online AI (SetupCard, OnlineSetupSheet). */
 "Use an Online AI" = "Use an Online AI";
-"No download. What you type goes to the provider you choose. Before anything from Mail, documents, Calendar, Reminders or Photos goes along, Pippa shows you the exact text. You can switch back to this Mac at any time in Settings." = "No download. What you type goes to the provider you choose. Before anything from Mail, documents, Calendar, Reminders or Photos goes along, Pippa shows you the exact text. You can switch back to this Mac at any time in Settings.";
+"Recommended" = "Recommended";
+"This Mac" = "This Mac";
+"Chosen provider" = "Chosen provider";
+"Data flow: This Mac directly to %@" = "Data flow: This Mac directly to %@";
+"Direct to the provider, no middleman" = "Direct to the provider, no middleman";
+"Mail, files, Calendar, Reminders & Photos only after you review" = "Mail, files, Calendar, Reminders & Photos only after you review";
+"Switch back to this Mac anytime" = "Switch back to this Mac anytime";
 "The download for this Mac keeps going." = "The download for this Mac keeps going.";
 "More Providers and Models…" = "More Providers and Models…";
 "Sign in to %@" = "Sign in to %@";

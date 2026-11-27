@@ -60,9 +60,10 @@ Contract: [Vision, section 5](VISION.md#5-calm-proactivity-12). Opt-in, one or t
 
 ### Still open
 
-- **UI polish, second pass:** card views, onboarding text.
 - **Pippa Island on a MacBook with a notch.** Checked on a MacBook Air with a notch for 0.6.6 (window lifecycle check,
   real menu bar); motion and drag and drop at the real notch still need a look.
+- **Real-portal browser sign-in matrix.** Multi-tab local browsing and OAuth child popups are implemented; manual
+  AutoFill/Passkey testing across 5 real portals on macOS 26.2 remains open.
 
 Released in 1.1.0: opt-in calm notices (Settings › General › Calm notices, off by default) backed by a SQLite matter store (`proactivity.sqlite`) with human-closed task permanence, a strict daily cap of at most 2 nudges/day, quiet hours + screen-lock + optional Focus status awareness, 1-click mute per kind, a 0-token Morning Brief (`DurableJobKind.morningBriefing`) from already-authorized Calendar and Reminders with a Settings preview, a single-level watched folder scanner with content-hash deduplication and Tier-0 Apple Foundation Models triage (strictly read-only, never waking oMLX in the background), and a quiet Pippa Island nudge card with menu bar fallback; reliable "Check for Updates…" and direct "Install and Restart" when a background Sparkle update waits for quit; redesigned heypippa.app website (German and English) and updated OG preview cards.
 

@@ -117,3 +117,8 @@
 "… and %lld more" = "… und %lld weitere";
 "Contacts" = "Kontakte";
 "Notes" = "Notizen";
+"Your account with this online AI doesn’t allow this right now. Check your account, or choose another AI in Settings." = "Dein Konto bei dieser Online-KI erlaubt das gerade nicht. Prüf dein Konto oder wähl in den Einstellungen eine andere KI.";
+"The online AI isn’t available right now. Please try again in a few minutes." = "Die Online-KI ist gerade nicht erreichbar. Versuch es in ein paar Minuten noch einmal.";
+"The online AI couldn’t take this request. Check the AI you chose in Settings, or ask in other words." = "Die Online-KI konnte mit dieser Anfrage nichts anfangen. Prüf die gewählte KI in den Einstellungen oder frag mit anderen Worten.";
+"The online AI you chose can’t work with Pippa’s tools. Choose another one in Settings." = "Die gewählte Online-KI kann nicht mit Pippas Werkzeugen arbeiten. Wähl in den Einstellungen eine andere.";
+"This conversation is too long for the online AI. Start a new chat, or send fewer or smaller files." = "Dieses Gespräch ist für die Online-KI zu lang. Fang einen neuen Chat an oder schick weniger oder kleinere Dateien.";

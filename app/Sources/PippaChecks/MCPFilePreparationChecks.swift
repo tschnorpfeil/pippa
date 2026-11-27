@@ -112,6 +112,23 @@ func runMCPFilePreparationChecks() async {
             && (try? [first, second].map { try Data(contentsOf: $0) }) == originalBytes
     }
 
+    await checkAsync("MCP prepare_files: One PDF in a turn registry of its own leaves a running answer's turn and writes untouched") {
+        // `setup` gives the PDF job its own registry, as `PippaMCPService.makePDF` does; the answer runs in another.
+        let (host, pdf, store) = try setup("beside-answer")
+        let answers = PippaMCPTurns(), answer = PippaMCPTurn()
+        answers.begin(answer)
+        let result = await PippaMCPFilePreparation(host: host, turn: pdf, scope: pdf.writes).call(["paths": [first.path]])
+        host.turns.end(pdf)
+        let records = try await store.records()
+        let untouched = answers.active === answer && !answer.writes.snapshot.cancelled && answer.writes.snapshot.receipts.isEmpty
+        answers.end(answer)
+        // Beginning a job in the answer's own registry is what cancelled the answer before.
+        let other = PippaMCPTurns(), running = PippaMCPTurn()
+        other.begin(running); other.begin(PippaMCPTurn())
+        return !result.isError && result.card != nil && records.first?.state == .completed && untouched
+            && answers.active == nil && running.writes.snapshot.cancelled
+    }
+
     await checkAsync("MCP prepare_files: normalization deduplicates exact requests while input order remains meaningful") {
         let (host, turn, store) = try setup("dedup")
         let adapter = PippaMCPFilePreparation(host: host, turn: turn, scope: turn.writes)

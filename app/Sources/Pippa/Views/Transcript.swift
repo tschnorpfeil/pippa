@@ -25,7 +25,7 @@ struct Transcript: View {
     /// What may move the end of the conversation while an answer comes in: cheap to compare on every new word,
     /// unlike the whole message.
     private struct Progress: Equatable {
-        var text = 0, thinking = 0, steps = 0, cards = 0, receipts = 0
+        var text = 0, thinking = 0, steps = 0, cards = 0, receipts = 0, answeredQuestions = 0
         var failed = false
     }
 
@@ -34,7 +34,8 @@ struct Transcript: View {
     private var progress: Progress {
         guard let last = conversation.messages.last else { return Progress() }
         return Progress(text: last.text.utf8.count, thinking: last.thinking?.utf8.count ?? 0, steps: last.steps.count,
-                        cards: last.cards.count, receipts: last.receipts.count, failed: last.error != nil)
+                        cards: last.cards.count, receipts: last.receipts.count,
+                        answeredQuestions: last.answeredQuestions?.count ?? 0, failed: last.error != nil)
     }
 
     private func errorFallback(for message: ChatMessage, isLast: Bool) -> MessageView.ErrorFallback? {

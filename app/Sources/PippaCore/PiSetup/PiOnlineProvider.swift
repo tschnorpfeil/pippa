@@ -38,8 +38,12 @@ public enum PiOnlineProvider {
 
     public static func entry(_ connection: ModelConnection) -> [String: Any] {
         ["baseUrl": baseURL(connection), "api": api(connection.provider), "apiKey": "$" + keyVariable,
-         "models": [["id": connection.modelID, "name": connection.displayName, "contextWindow": connection.contextWindow,
-                     "maxTokens": maxTokens(connection)] as [String: Any]]]
+         "models": [[
+            "id": connection.modelID,
+            "name": connection.displayName,
+            "contextWindow": connection.contextWindow,
+            "maxTokens": maxTokens(connection),
+         ]]]
     }
 
     /// Pi options for Pippa's own Pi when the online service is working (instead of `--provider pippa-local`).

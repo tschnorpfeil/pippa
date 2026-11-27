@@ -2,6 +2,7 @@ import AppKit
 import Foundation
 import PiRPC
 import PippaCore
+import WebKit
 
 /// `Pippa --check-approvals`: the question flow without any window. Asks while a presenter is registered, answers,
 /// cancels and times out, and checks each answer reaches the waiting caller exactly once. Prints one line per check.
@@ -118,8 +119,13 @@ enum ApprovalsChecks {
         host.turns.end(turnB)
 
         await actionCardChecks(approvals, check: check)
+        await answeredQuestionChecks(approvals, check: check)
         await runUndoChecks(check: check)
         await runSteerChecks(check: check)
+        await runSteerBurstChecks(approvals, check: check)
+        await runQueueChecks(check: check)
+        await runPDFBesideAnswerChecks(check: check)
+        await runBrowserPoolChecks(check: check)
         failures += Int(await HeadlessAskChecks.run())
 
         print(failures == 0 ? "approvals: all checks passed" : "approvals: \(failures) failed")
@@ -128,6 +134,112 @@ enum ApprovalsChecks {
 }
 
 extension ApprovalsChecks {
+    /// One-card `select` choice parsing, whitespace rejection, answered-question persistence, JSON round-trip and
+    /// backwards-compatible decoding, and cancellation/timeout/stop outcomes (A5, A6, A7).
+    static func answeredQuestionChecks(_ approvals: Approvals, check: (Bool, String) -> Void) async {
+        // A6: Shared `ApprovalChoices` helper detects English and German `otherChoice` sentinels.
+        let enChoices = ApprovalChoices.parse(["Opt 1", "Opt 2", "Opt 3", "Opt 4", "Something else…"])
+        let deChoices = ApprovalChoices.parse(["Lena Berger", "Lena Koch", "Etwas anderes …"])
+        let plainChoices = ApprovalChoices.parse(["Once", "Always"])
+        check(enChoices.options == ["Opt 1", "Opt 2", "Opt 3", "Opt 4"] && enChoices.allowsCustomText && enChoices.customPrompt == "Something else…"
+              && deChoices.options == ["Lena Berger", "Lena Koch"] && deChoices.allowsCustomText
+              && plainChoices.options == ["Once", "Always"] && !plainChoices.allowsCustomText && plainChoices.customPrompt == nil,
+              "shared choice parser splits trailing otherChoice sentinels in English and German while keeping plain choices intact")
+
+        // A7: Whitespace-only free text is never accepted as a valid answer.
+        check(ApprovalChoices.validatedText("") == nil
+              && ApprovalChoices.validatedText("   \t\n  ") == nil
+              && ApprovalChoices.validatedText("  Lena from work  ") == "Lena from work",
+              "whitespace-only free text is rejected and valid free text is trimmed")
+
+        // A5 & A7: Answering, cancelling, timing out and stopping record read-only entries on the running ChatMessage.
+        let chat = ChatModel.shared
+        let saved = (chat.conversations, chat.currentID)
+        let id = "answered-question-check"
+        chat.showSample([Conversation(id: id, title: "Synthetic", updated: Date(),
+                                      messages: [ChatMessage(role: .user, text: "Check"), ChatMessage(role: .assistant, text: "")])],
+                        current: id, answering: true)
+        defer { chat.showSample(saved.0, current: saved.1, answering: false) }
+
+        func settle() async { for _ in 0..<5 { await Task.yield() } }
+
+        let confirmTask = Task {
+            await approvals.ask(PiUIRequest(id: "aq-confirm", method: "confirm", title: "Search the web?",
+                                            message: "Pippa wants to look this up online."))
+        }
+        await settle()
+        approvals.answer("aq-confirm", .confirmed(true))
+        _ = await confirmTask.value
+
+        let selectTask = Task {
+            await approvals.ask(PiUIRequest(id: "aq-select", method: "select", title: "Which Lena?", message: "",
+                                            options: ["Lena B.", "Lena K.", "Lena M.", "Lena S.", "Something else…"]))
+        }
+        await settle()
+        approvals.answer("aq-select", .value("Lena from work"))
+        _ = await selectTask.value
+
+        let cancelTask = Task {
+            await approvals.ask(PiUIRequest(id: "aq-cancel", method: "select", title: "Pick folder", message: "",
+                                            options: ["Documents", "Downloads"]))
+        }
+        await settle()
+        approvals.answer("aq-cancel", .cancelled)
+        _ = await cancelTask.value
+
+        let timeoutTask = Task {
+            await approvals.ask(PiUIRequest(id: "aq-timeout", method: "confirm", title: "Timed out?",
+                                            message: "Should cancel automatically.", timeout: 40))
+        }
+        await settle()
+        _ = await timeoutTask.value
+
+        let stopTask = Task {
+            await approvals.ask(PiUIRequest(id: "aq-stop", method: "confirm", title: "Stopped?",
+                                            message: "Cancelled when the answer stops."))
+        }
+        await settle()
+        approvals.cancelAll()
+        _ = await stopTask.value
+
+        let whitespaceRecord = AnsweredQuestion.from(
+            Approvals.Question(id: "aq-blank", request: PiUIRequest(id: "aq-blank", method: "input", title: "Folder name?", message: ""),
+                               conversationID: id, asked: Date()),
+            response: .value("   \n\t ")
+        )
+        check(whitespaceRecord.outcome == .cancelled && whitespaceRecord.answer == nil,
+              "whitespace-only value response is recorded as cancelled, never answered")
+
+        let message = chat.conversations.first(where: { $0.id == id })?.messages.last
+        let recorded = message?.answeredQuestions ?? []
+        check(approvals.questions.isEmpty && recorded.count == 5,
+              "answered, cancelled, timed-out and stopped questions are recorded on the ChatMessage and cleared from open questions")
+        if recorded.count == 5 {
+            check(recorded[0].kind == .confirm && recorded[0].outcome == .allowed && recorded[0].title == "Search the web?"
+                  && recorded[0].detail == "Pippa wants to look this up online."
+                  && recorded[1].kind == .select && recorded[1].outcome == .answered && recorded[1].answer == "Lena from work",
+                  "confirm and select answers keep their kind, title, detail and chosen value")
+            check(recorded[2].outcome == .cancelled && recorded[2].answer == nil
+                  && recorded[3].outcome == .cancelled && recorded[3].answer == nil
+                  && recorded[4].outcome == .cancelled && recorded[4].answer == nil,
+                  "cancel, timeout and stop all record cancelled and never allowed")
+        }
+
+        // A5: JSON round-trip and backwards compatibility with legacy ChatMessage JSON lacking `answeredQuestions`.
+        if let message,
+           let encoded = try? JSONEncoder().encode(message),
+           let decoded = try? JSONDecoder().decode(ChatMessage.self, from: encoded) {
+            check(decoded.answeredQuestions == message.answeredQuestions && decoded == message,
+                  "ChatMessage with answeredQuestions survives JSONEncoder/JSONDecoder round-trip")
+        } else {
+            check(false, "ChatMessage with answeredQuestions survives JSONEncoder/JSONDecoder round-trip")
+        }
+
+        let legacyJSON = #"{"id":"6F1A0C2E-AAAA-4C55-9E0B-000000000002","role":"assistant","text":"Legacy answer","files":[],"steps":[],"cards":[],"receipts":[]}"#
+        let legacy = try? JSONDecoder().decode(ChatMessage.self, from: Data(legacyJSON.utf8))
+        check(legacy?.text == "Legacy answer" && legacy?.answeredQuestions == nil,
+              "legacy ChatMessage JSON without answeredQuestions decodes cleanly")
+    }
     /// A follow-up while Pippa answers (`ChatModel.steer`, `PiSession.steer`): only typed words in the conversation
     /// that answers, never with files, a review, a single question, an approved message or after a settings change.
     static func runSteerChecks(check: (Bool, String) -> Void) async {
@@ -189,6 +301,238 @@ extension ApprovalsChecks {
         check(chat.draft.isEmpty, "undelivered steering for another conversation never overwrites the visible composer")
         chat.select(id)
         check(chat.draft == "Für das erste Gespräch", "selecting the stopped conversation restores its preserved steering text")
+        chat.replaceForSnapshot([], current: nil, answering: false)
+    }
+
+    /// A21: follow-ups typed in quick succession go to Pi as one message, and a follow-up cancels the answer's open
+    /// question cards (never allows them), with a record that says why.
+    static func runSteerBurstChecks(_ approvals: Approvals, check: (Bool, String) -> Void) async {
+        let session = PiSession.shared, chat = ChatModel.shared
+        let saved = (chat.conversations, chat.currentID), savedSender = chat.steerSender, savedDelay = ChatModel.steerCoalesceDelay
+        let id = "steer-burst-check"
+        chat.showSample([Conversation(id: id, title: "Synthetic", updated: Date(),
+                                      messages: [ChatMessage(role: .user, text: "Frage"), ChatMessage(role: .assistant, text: "")])],
+                        current: id, answering: true)
+        let idle = PiRPCClient(configuration: PiRPCConfiguration(executable: URL(fileURLWithPath: "/usr/bin/false"),
+                                                                 workingDirectory: FileManager.default.temporaryDirectory))
+        session.allowSteering(idle, revision: session.settingsRevision)
+        var sent: [String] = []
+        chat.steerSender = { sent.append($0); return true }
+        ChatModel.steerCoalesceDelay = .milliseconds(40)
+        defer {
+            chat.steerSender = savedSender
+            ChatModel.steerCoalesceDelay = savedDelay
+            session.settingsChanged()
+            chat.showSample(saved.0, current: saved.1, answering: false)
+        }
+        func wait(until done: () -> Bool) async {
+            for _ in 0..<200 where !done() { try? await Task.sleep(for: .milliseconds(10)) }
+        }
+
+        chat.draft = "first"
+        chat.steer()
+        check(chat.canSteerHere, "a follow-up on its way never locks out the next one")
+        chat.draft = " second "
+        chat.steer()
+        check(chat.draft.isEmpty && sent.isEmpty, "rapid follow-ups leave the composer at once and wait together")
+        await wait { !sent.isEmpty }
+        try? await Task.sleep(for: .milliseconds(80))
+        check(sent == ["first\nsecond"], "two follow-ups within the window reach Pi as one message")
+
+        let card = Task {
+            await approvals.ask(PiUIRequest(id: "steer-confirm", method: "confirm", title: "Send this mail?",
+                                            message: "To: anna@example.test", options: ["Don’t Send", "Send"]))
+        }
+        for _ in 0..<5 { await Task.yield() }
+        check(approvals.questions.map(\.id) == ["steer-confirm"] && approvals.questions.first?.conversationID == id,
+              "the answer's confirmation card is open")
+        // S1: if Pi refuses the follow-up, the live approval card stays open and the words return to the composer.
+        chat.steerSender = { _ in false }
+        chat.draft = "Abgelehnt"
+        chat.steer()
+        await wait { !chat.draft.isEmpty }
+        check(chat.draft == "Abgelehnt" && approvals.questions.map(\.id) == ["steer-confirm"],
+              "a burst Pi refuses comes back into the composer and leaves an open approval card intact")
+
+        // S1: with an open card, steer skips the coalesce delay, delivers to Pi first, then cancels the card.
+        ChatModel.steerCoalesceDelay = .seconds(30)
+        chat.steerSender = { sent.append($0); return true }
+        chat.draft = "Doch nicht senden"
+        chat.steer()
+        let response = await card.value
+        let sentBeforeCancel = sent.last == "Doch nicht senden"
+        let record = chat.conversations.first { $0.id == id }?.messages.last?.answeredQuestions?.last
+        check(response == .cancelled && sentBeforeCancel && approvals.questions.isEmpty && record?.id == "steer-confirm"
+              && record?.outcome == .cancelled && record?.answer == T("Follow-up sent", table: "App")
+              && record?.displayAnswer == T("Follow-up sent", table: "App"),
+              "a follow-up delivers to Pi immediately before cancelling the open card and recording it as cancelled for the follow-up")
+        check(AnsweredQuestion(id: "plain", kind: .confirm, title: "x", outcome: .cancelled, answeredAt: Date()).displayAnswer
+              == T("Cancelled", table: "Views"), "a plain cancellation still says Cancelled")
+
+        chat.draft = "Noch nicht raus"
+        chat.steer()
+        chat.stop()
+        check(chat.draft == "Noch nicht raus" && !sent.contains("Noch nicht raus"),
+              "Stop returns follow-ups not yet sent to the composer, and they never reach a later answer")
+        // Stop's own `PiSession.stop` cancels whichever native turn is active: it settles here, before the next check.
+        try? await Task.sleep(for: .milliseconds(200))
+    }
+
+    /// A20: a message written while another conversation answers waits there, comes back on Cancel, disappears with
+    /// its conversation, goes out once the answer ends, and never goes out under AI settings changed meanwhile.
+    static func runQueueChecks(check: (Bool, String) -> Void) async {
+        let chat = ChatModel()
+        let a = "queue-check-a", b = "queue-check-b"
+        func conversations() -> [Conversation] {
+            [Conversation(id: a, title: "A", updated: Date(), messages: [ChatMessage(role: .user, text: "Frage"), ChatMessage(role: .assistant, text: "")]),
+             Conversation(id: b, title: "B", updated: Date(), messages: [])]
+        }
+        var started: [(ChatModel.QueuedSend, PiSession.Outgoing)] = []
+        chat.startQueuedForCheck = { queued, outgoing, _ in started.append((queued, outgoing)) }
+        func answeringInA(showing current: String?) {
+            chat.replaceForSnapshot(conversations(), current: a, answering: true)
+            chat.currentID = current
+            chat.draft = ""; chat.attachments = []; chat.problem = nil
+        }
+
+        answeringInA(showing: b)
+        chat.draft = "  Und morgen?  "
+        check(chat.canQueueHere && !chat.canSteerHere, "while A answers, B may queue a message (and never steer A)")
+        chat.send()
+        check(chat.queuedSends[b]?.text == "Und morgen?" && chat.queuedHere?.conversationID == b && chat.draft.isEmpty
+              && chat.queuedSends[b]?.settingsRevision == PiSession.shared.settingsRevision,
+              "Send in B while A answers queues the message under the current settings and clears the composer")
+        chat.draft = "Noch eins"
+        check(!chat.canQueueHere, "one waiting message per conversation")
+        chat.draft = ""
+        chat.cancelQueued(in: b)
+        check(chat.queuedSends.isEmpty && chat.draft == "Und morgen?", "Cancel takes the waiting message back into the composer")
+
+        chat.send()
+        chat.delete(b)
+        chat.replaceForSnapshot(conversations(), current: a, answering: false)
+        chat.drainNextQueued()
+        check(chat.queuedSends.isEmpty && started.isEmpty, "a deleted conversation's waiting message never goes out")
+
+        answeringInA(showing: nil)
+        chat.draft = "Neues Gespräch"
+        let before = chat.conversations.count
+        chat.send()
+        let fresh = chat.currentID
+        check(chat.conversations.count == before + 1 && fresh != nil && fresh != a && chat.queuedSends[fresh ?? ""] != nil,
+              "a message queued from an empty composer gets its own conversation in the sidebar")
+        if let fresh { chat.cancelQueued(in: fresh); chat.delete(fresh) }
+
+        answeringInA(showing: b)
+        chat.draft = "Und morgen?"
+        chat.send()
+        chat.drainNextQueued()
+        check(started.isEmpty && chat.queuedSends[b] != nil, "nothing waiting goes out while the other answer still runs")
+        chat.replaceForSnapshot(conversations(), current: a, answering: false)
+        chat.drainNextQueued()
+        check(started.count == 1 && started.first?.0.conversationID == b && started.first?.0.text == "Und morgen?"
+              && chat.queuedSends.isEmpty, "once A has finished, B's waiting message goes out into B")
+
+        started = []
+        answeringInA(showing: b)
+        chat.draft = "Unter alten Einstellungen"
+        chat.send()
+        PiSession.shared.settingsChanged()
+        chat.replaceForSnapshot(conversations(), current: b, answering: false)
+        chat.draft = ""; chat.problem = nil
+        chat.drainNextQueued()
+        let changed = T("The AI settings changed while your message waited. Check it and send it again.", table: "App")
+        check(started.isEmpty && chat.queuedSends.isEmpty && chat.draft == "Unter alten Einstellungen" && chat.problem == changed,
+              "after the AI settings changed, a waiting message never goes out: it comes back with a sentence")
+
+        answeringInA(showing: b)
+        chat.draft = "Im Hintergrund"
+        chat.send()
+        PiSession.shared.settingsChanged()
+        chat.replaceForSnapshot(conversations(), current: a, answering: false)
+        chat.problem = nil
+        chat.drainNextQueued()
+        check(started.isEmpty && chat.problem == nil, "a changed waiting message in another conversation says nothing here")
+        chat.select(b)
+        check(chat.draft == "Im Hintergrund" && chat.problem == changed, "opening its conversation shows the message and why it came back")
+
+        // Changing sharing rules or capabilities without bumping settingsRevision still blocks auto-send (R3).
+        started = []
+        answeringInA(showing: b)
+        chat.draft = "Mit geänderten Regeln"
+        chat.send()
+        var altered = SettingsModel.shared.inferenceSettings
+        altered.sharing.mail = altered.sharing.mail == .localOnly ? .ask : .localOnly
+        chat.replaceForSnapshot(conversations(), current: b, answering: false)
+        chat.draft = ""; chat.problem = nil
+        chat.drainNextQueued(currentSettings: altered)
+        check(started.isEmpty && chat.queuedSends.isEmpty && chat.draft == "Mit geänderten Regeln" && chat.problem == changed,
+              "changed sharing rules or capabilities without a settings revision bump still block a queued message")
+
+        // Restoring an undelivered follow-up never drops text typed meanwhile (R4).
+        chat.draft = "Neuer Satz"
+        chat.restoreDraft("Alter Nachtrag", to: b)
+        check(chat.draft == "Alter Nachtrag\n\nNeuer Satz",
+              "restoring an undelivered follow-up preserves newer text already in the composer")
+        chat.replaceForSnapshot([], current: nil, answering: false)
+    }
+
+    /// A19: One PDF beside a running answer: its own turn never replaces or cancels the answer's, in the MCP host or in
+    /// the chat, and both finish on their own.
+    static func runPDFBesideAnswerChecks(check: (Bool, String) -> Void) async {
+        let savedBase = PippaMCPService.baseHost
+        // The demo host has no job journal: the conversion fails at once, without touching a real file.
+        PippaMCPService.baseHost = { .demo() }
+        defer { PippaMCPService.baseHost = savedBase }
+        let answer = PippaMCPTurn()
+        PippaMCPService.currentHost.turns.begin(answer)
+        let fresh = !answer.writes.snapshot.cancelled
+        let result = await PippaMCPService.makePDF([URL(fileURLWithPath: "/synthetic/Scan.pdf")])
+        check(fresh && PippaMCPService.currentHost.turns.active === answer && !answer.writes.snapshot.cancelled && result.failed,
+              "One PDF never replaces or cancels the running answer's turn and writes")
+        PippaMCPService.currentHost.turns.end(answer)
+        check(PippaMCPService.currentHost.turns.active == nil, "the answer's turn still ends on its own")
+
+        let chat = ChatModel()
+        let a = "pdf-check-a", b = "pdf-check-b"
+        chat.replaceForSnapshot([Conversation(id: a, title: "A", updated: Date(), messages: [ChatMessage(role: .user, text: "Frage"), ChatMessage(role: .assistant, text: "")]),
+                                 Conversation(id: b, title: "B", updated: Date(), messages: [])], current: a, answering: true)
+        chat.currentID = b
+        chat.attachments = [URL(fileURLWithPath: "/synthetic/Scan.pdf")]
+        chat.makePDF()
+        check(chat.isMakingPDF && chat.pdfConversationID == b && chat.isAnswering && chat.answeringID == a && chat.attachments.isEmpty,
+              "One PDF starts in B while A answers, without touching A's answer")
+        for _ in 0..<300 where chat.isMakingPDF { try? await Task.sleep(for: .milliseconds(10)) }
+        let reply = chat.conversations.first { $0.id == b }?.messages.last
+        check(!chat.isMakingPDF && chat.isAnswering && chat.answeringID == a && reply?.role == .assistant && reply?.error != nil,
+              "the PDF finishes on its own while A still answers")
+
+        chat.currentID = a
+        chat.draft = "Entwurf in A"
+        chat.frontApp = "Mail"
+        chat.attachments = [URL(fileURLWithPath: "/synthetic/Scan.pdf")]
+        let count = chat.conversations.count
+        chat.makePDF()
+        let pdfID = chat.pdfConversationID
+        let newComposerClean = chat.draft.isEmpty && chat.frontApp == nil && chat.attachments.isEmpty
+        chat.stopPDF()
+        let stopped = chat.conversations.first { $0.id == chat.currentID }?.messages.last
+        chat.select(a)
+        check(pdfID != a && chat.conversations.count == count + 1
+              && chat.conversations.first { $0.id == a }?.messages.count == 2
+              && newComposerClean && chat.draft == "Entwurf in A" && chat.attachments.isEmpty,
+              "One PDF from the answering conversation goes into a new one and keeps the answering conversation's unsent draft")
+        check(!chat.isMakingPDF && stopped?.stopped == true && chat.isAnswering, "Stop ends the PDF at once and leaves the answer running")
+        // S7: One PDF from a fresh empty composer (currentID == nil) keeps whatever text the person typed alongside the files.
+        chat.currentID = nil
+        chat.draft = "Bitte kurz prüfen"
+        chat.attachments = [URL(fileURLWithPath: "/synthetic/Scan.pdf")]
+        chat.makePDF()
+        let keptNewDraft = chat.draft == "Bitte kurz prüfen" && chat.attachments.isEmpty && chat.currentID != nil
+        chat.stopPDF()
+        check(keptNewDraft, "One PDF from a fresh conversation preserves unsent text typed alongside the attached files")
+        // The cancelled job settles under the demo host before the real one comes back.
+        try? await Task.sleep(for: .milliseconds(200))
         chat.replaceForSnapshot([], current: nil, answering: false)
     }
 
@@ -551,5 +895,205 @@ enum ConversationStoreChecks {
 
         print(failures == 0 ? "conversation store: all checks passed" : "conversation store: \(failures) failed")
         return failures == 0 ? 0 : 1
+    }
+}
+
+/// A navigation as WebKit hands it to the delegate, for the browser checks (no page is loaded).
+private final class FixtureNavigationAction: WKNavigationAction {
+    private let url: URL?
+    init(_ url: URL?) { self.url = url; super.init() }
+    override var request: URLRequest { url.map { URLRequest(url: $0) } ?? URLRequest(url: URL(string: "about:blank")!) }
+    override var targetFrame: WKFrameInfo? { nil }
+}
+
+/// A response (the end of a redirect chain) for the browser checks. WebKit's own `dealloc` expects state only WebKit
+/// sets up, so each fixture stays alive until the check process exits.
+@MainActor
+private final class FixtureNavigationResponse: WKNavigationResponse {
+    private static var kept: [FixtureNavigationResponse] = []
+    private let url: URL
+    init(_ url: URL) { self.url = url; super.init(); Self.kept.append(self) }
+    override var response: URLResponse { URLResponse(url: url, mimeType: "text/html", expectedContentLength: 0, textEncodingName: nil) }
+    override var isForMainFrame: Bool { true }
+}
+
+extension ApprovalsChecks {
+    /// Pippa's browser panel without loading a page (A23, A24): one tab per conversation in a pool of at most
+    /// `maxActiveWebViews` live views, sign-in popups as real child views behind the same address guard, the online
+    /// view apart from all of it, and `front_read` pages as web sources. Also run by `--check-window-lifecycle`.
+    static func runBrowserPoolChecks(check: (Bool, String) -> Void) async {
+        let pool = WKBrowserSession.makeLocalPool()
+        // Nothing here may resolve or load: a stand-in decides which hosts are private.
+        pool.resolvesToPrivateAddress = { $0 == "intranet.example.com" }
+        pool.authorizeNavigation = { _, _, _ in true }
+        func live() -> Set<String> { Set(pool.tabs.values.filter { $0.webView != nil }.map(\.key)) }
+        @discardableResult
+        func open(_ id: String) -> WKBrowserSession.Tab {
+            let tab = pool.tab(for: id)
+            pool.materialize(tab)
+            tab.lastURL = URL(string: "https://\(id).example.com/page")
+            tab.lastTitle = "Page \(id)"
+            tab.latestSnapshot = BrowserSnapshot(snapshotId: "snap-\(id)", url: "https://\(id).example.com/page", title: "Page \(id)",
+                                                 text: "", refs: [BrowserElementRef(ref: "@e1", role: "link", name: "More")])
+            return tab
+        }
+
+        let a = open("a"), b = open("b"), c = open("c")
+        pool.selectConversation("c")
+        let snapA = await pool.currentSnapshot(conversation: "a"), snapB = await pool.currentSnapshot(conversation: "b")
+        let snapOther = await pool.currentSnapshot(conversation: "z"), snapShared = await pool.currentSnapshot()
+        check(WKBrowserSession.maxActiveWebViews == 3 && live() == ["a", "b", "c"] && pool.displayedKey == "c"
+              && snapA?.snapshotId == "snap-a" && snapB?.snapshotId == "snap-b" && snapOther == nil && snapShared == nil,
+              "browser A23: each conversation has its own tab and snapshot; no snapshot reaches another conversation")
+        let d = open("d")
+        let evictedSnapshot = await pool.currentSnapshot(conversation: "a")
+        check(live() == ["b", "c", "d"] && a.webView == nil && a.lastURL?.absoluteString == "https://a.example.com/page"
+              && a.lastTitle == "Page a" && a.latestSnapshot == nil && evictedSnapshot == nil && pool.tabs["a"] === a,
+              "browser A23: a 4th tab gives back the oldest idle tab's view, keeping its address and title, dropping its refs")
+
+        b.modelActions = 1
+        d.handoffMessage = "Sign in"
+        let e = open("e")
+        check(live() == ["b", "c", "d", "e"] && b.webView != nil && c.webView != nil && d.webView != nil,
+              "browser A23: a tab Pippa is using, the shown tab and a tab waiting for the person are never evicted")
+        // R2: an inactive tab with an open OAuth popup (even without a handoff banner) is also never evicted.
+        d.handoffMessage = nil
+        let dPopup = pool.webView(d.webView!, createWebViewWith: WKWebViewConfiguration(),
+                                  for: FixtureNavigationAction(URL(string: "https://auth.example.com/login")),
+                                  windowFeatures: WKWindowFeatures())
+        b.modelActions = 0
+        let f = open("f")
+        check(dPopup != nil && d.popupWebView === dPopup && live() == ["c", "d", "f"] && b.webView == nil && e.webView == nil,
+              "browser A23: an inactive tab with an open sign-in popup is never evicted while idle tabs give back their views")
+        if let dPopup { pool.webViewDidClose(dPopup) }
+        open("g")
+        check(live() == ["c", "f", "g"] && d.webView == nil,
+              "browser A23: once its popup closes, an idle tab gives back its view when the pool grows")
+
+        // R3: switching conversations while the panel is closed never opens the panel or auto-restores an evicted tab.
+        pool.isOpen = false
+        pool.selectConversation("a")
+        check(!pool.isOpen && pool.displayedKey == "a" && pool.restorableURL?.absoluteString == "https://a.example.com/page"
+              && pool.shownWebView == nil && pool.tabItems.map(\.id) == ["a", "b", "c", "d", "e", "f", "g"],
+              "browser A23: switching chats while the panel is closed shows that tab without opening the panel")
+        // R4: deleting a conversation discards its tab and closes the panel if it was shown.
+        pool.isOpen = true
+        pool.selectConversation("g")
+        pool.forgetConversation("g")
+        check(pool.tabs["g"] == nil && !pool.isOpen && pool.displayedKey == WKBrowserSession.defaultKey,
+              "browser A23: forgetting a deleted conversation discards its tab and closes the panel if shown")
+
+        // S4: opening handoff for the chat's active conversation switches displayedKey before opening the panel.
+        let savedChatCurrent = ChatModel.shared.currentID
+        ChatModel.shared.currentID = "h"
+        pool.showHandoff("Sign in", conversation: "h")
+        let switchedForHandoff = pool.isOpen && pool.displayedKey == "h" && pool.handoffMessage == "Sign in"
+        pool.forgetConversation("h")
+        ChatModel.shared.currentID = savedChatCurrent
+        check(switchedForHandoff, "browser A23: opening handoff for the visible chat switches the panel to that chat's tab")
+
+        pool.resolvesToPrivateAddress = { $0 == "intranet.example.com" }
+        f.modelActions = 1
+        pool.closeTab("f")
+        let acting = pool.tabs["f"] === f
+        f.modelActions = 0
+        pool.closeTab("e")
+        _ = try? await pool.perform(.close, conversation: "c")
+        check(acting && pool.tabs["e"] == nil && pool.tabs["c"] == nil && pool.tabs["f"]?.webView != nil && pool.tabs["a"] === a,
+              "browser A23: closing one conversation's tab leaves the others; a tab Pippa is using stays open")
+
+        // R1: cross-conversation navigation authorization never bleeds another conversation's active turn or prompts inside it.
+        let turns = PippaMCPTurns()
+        let approvals = PippaMCPBrowserApprovals()
+        let turnB = PippaMCPTurn(conversation: "conv-b")
+        turns.begin(turnB)
+        approvals.approve("b.example.com", turn: turnB.id)
+        var prompted = 0
+        let confirm: (String, String) async -> Bool = { _, _ in prompted += 1; return false }
+        let otherIdle = await PippaMCPService.authorizeLocalNavigation(
+            url: URL(string: "https://b.example.com/path")!, tabKey: "conv-a", personsStep: false,
+            turns: turns, approvals: approvals, confirm: confirm)
+        let otherHandoff = await PippaMCPService.authorizeLocalNavigation(
+            url: URL(string: "https://login.example.com/")!, tabKey: "conv-a", personsStep: true,
+            turns: turns, approvals: approvals, confirm: confirm)
+        let ownApproved = await PippaMCPService.authorizeLocalNavigation(
+            url: URL(string: "https://b.example.com/other")!, tabKey: "conv-b", personsStep: false,
+            turns: turns, approvals: approvals, confirm: confirm)
+        let ownNewHost = await PippaMCPService.authorizeLocalNavigation(
+            url: URL(string: "https://new.example.com/")!, tabKey: "conv-b", personsStep: false,
+            turns: turns, approvals: approvals, confirm: confirm)
+        turns.end(turnB)
+        check(!otherIdle && otherHandoff && ownApproved && !ownNewHost && prompted == 1,
+              "browser A23: navigation approval is scoped to the active turn's conversation; other tabs never borrow or prompt inside it")
+
+        // A24: sign-in popups are real child views; every address they load passes the same guard as the tab.
+        pool.selectConversation("p")
+        let p = pool.tab(for: "p")
+        let opener = pool.materialize(p)
+        let other = pool.tab(for: "q")
+        func popup() -> WKWebView? {
+            pool.webView(opener, createWebViewWith: WKWebViewConfiguration(), for: FixtureNavigationAction(URL(string: "https://accounts.example.com/oauth")),
+                         windowFeatures: WKWindowFeatures())
+        }
+        let bad = ["file:///etc/hosts", "http://127.0.0.1/", "http://localhost:8080/callback", "https://intranet.example.com/login"]
+        var refused = true
+        for address in bad.prefix(3) {
+            p.blockedNavigation = false
+            let none = pool.webView(opener, createWebViewWith: WKWebViewConfiguration(), for: FixtureNavigationAction(URL(string: address)),
+                                    windowFeatures: WKWindowFeatures())
+            refused = refused && none == nil && p.blockedNavigation && p.popupWebView == nil
+        }
+        check(refused, "browser A24: a popup to a file, this Mac or localhost is refused before any view exists")
+        var guarded = true
+        for address in bad {
+            guard let child = popup() else { guarded = false; continue }
+            p.blockedNavigation = false
+            let redirect = await pool.webView(child, decidePolicyFor: FixtureNavigationResponse(URL(string: address)!))
+            let stayed = p.popupWebView === child
+            let navigation = await pool.webView(child, decidePolicyFor: FixtureNavigationAction(URL(string: address)))
+            guarded = guarded && redirect == .cancel && stayed && navigation == .cancel && p.blockedNavigation && p.popupWebView == nil
+        }
+        check(guarded, "browser A24: in a popup, redirects and navigations to a file, 127.0.0.1, localhost or a private-DNS host are refused")
+        let child = popup()
+        var allowed: WKNavigationResponsePolicy?
+        if let child { allowed = await pool.webView(child, decidePolicyFor: FixtureNavigationResponse(URL(string: "https://accounts.example.com/done")!)) }
+        check(child != nil && p.popupWebView === child && child?.navigationDelegate === pool && child?.uiDelegate === pool
+              && pool.shownWebView === child && pool.popupHost != nil && allowed == .allow && other.popupWebView == nil,
+              "browser A24: a public sign-in popup opens as its tab's own child view, shown in the panel, with the same delegates")
+        if let child { pool.webViewDidClose(child) }
+        let closedItself = p.popupWebView == nil && pool.shownWebView === opener && pool.popupHost == nil
+        _ = popup()
+        pool.closePopup()
+        check(closedItself && p.popupWebView == nil && pool.shownWebView === opener,
+              "browser A24: a popup that closes itself, or that the person closes, returns the panel to its page")
+
+        // A24: the online view stays apart: nonpersistent, one view, no popups, no tabs.
+        if let online = WKBrowserSession.makeOnline() {
+            online.resolvesToPrivateAddress = { _ in true }
+            let store = online.webView.configuration.websiteDataStore
+            online.selectConversation("p")
+            let none = online.webView(online.webView, createWebViewWith: WKWebViewConfiguration(),
+                                      for: FixtureNavigationAction(URL(string: "https://accounts.example.com/oauth")), windowFeatures: WKWindowFeatures())
+            let localStore = opener.configuration.websiteDataStore
+            check(!store.isPersistent && store !== WKWebsiteDataStore.default() && localStore === WKWebsiteDataStore.default()
+                  && localStore.isPersistent && none == nil && online.tab(for: "p") === online.tab(for: nil)
+                  && online.tabs.count == 1 && online.tab(for: nil).popupWebView == nil && pool.tabs.values.allSatisfy { $0.webView !== online.webView },
+                  "browser A24: the online view is nonpersistent, apart from local tabs and the default store, and never opens a popup")
+        } else {
+            print("SKIP browser A24: this WebKit cannot disable managed sign-in, so online browsing is unavailable")
+        }
+
+        // A24: a page open in front (`front_read`) is a web source only at a public address.
+        func front(_ data: String) -> ChatSource? { SourceLog.source(tool: "mcp__pippa__front_read", arguments: "{}", result: #"{"data":\#(data)}"#) }
+        let page = front(#"{"app":"Safari","title":"Öffnungszeiten","url":"https://www.example.com/hours","text":"Mo–Fr"}"#)
+        let untitled = front(#"{"app":"Safari","title":"","url":"https://www.example.com/hours"}"#)
+        let local = ["http://192.168.1.1/", "http://localhost:3000/", "file:///Users/me/Report.pdf", "http://127.0.0.1/", "not a url"].map {
+            front(#"{"app":"Safari","title":"Router","url":"\#($0)"}"#)
+        }
+        let document = front(#"{"app":"Preview","title":"Report.pdf","path":"/Users/me/Report.pdf"}"#)
+        check(page == ChatSource(kind: .web, name: "Öffnungszeiten", location: "https://www.example.com/hours", detail: "Safari")
+              && untitled?.name == "example.com" && local.allSatisfy { $0 == nil } && document == nil
+              && SourceChips.browsable(page!) != nil,
+              "browser A24: front_read of a public page is a web source; this Mac, its network and documents are not")
     }
 }

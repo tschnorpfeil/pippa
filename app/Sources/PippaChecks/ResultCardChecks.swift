@@ -132,4 +132,42 @@ func runResultCardChecks() async {
             && de("done", nil, "*") == "Alles vergessen, was Pippa über dich wusste"
             && de("failed", "IBAN DE89 3704 0044 0532 0130 00", nil) == "Nicht gemerkt"
     }
+    check("Mail draft card (A11/A12): reply, new message, keepMailRecipients, needsPaste, and Codable round-trip inside ActionReceipt") {
+        let replyDraft = MailDraft(messageID: "<m1@example.test>", to: "info@berger-hv.de", toName: "Hausverwaltung Berger",
+                                   subject: "Nebenkosten 2025", body: "Hallo,\n\nvielen Dank für die Unterlagen.\n\nViele Grüße",
+                                   isReply: true)
+        let saved = MailDraftCard(draft: replyDraft, result: .reply, draftID: "d00001")
+        let newDraft = MailDraft(messageID: nil, to: "anna@example.test", toName: nil,
+                                 subject: "Termin am Freitag", body: "Passt 10 Uhr?", isReply: false, exactSubject: true)
+        let opened = MailDraftCard(draft: newDraft, result: .newMessage, draftID: "d00002")
+        let keptDraft = MailDraft(messageID: "<m2@example.test>", to: "me@example.test", toName: "Me",
+                                  subject: "Re: Rückfrage", body: "Erledigt.", isReply: true, keepMailRecipients: true)
+        let kept = MailDraftCard(draft: keptDraft, result: .reply, draftID: nil)
+        let paste = MailDraftCard(draft: replyDraft, result: .replyNeedsPaste, draftID: nil)
+
+        let cards: [ResultCard] = [.mailDraft(saved), .mailDraft(opened), .mailDraft(paste)]
+        let receipt = ActionReceipt(items: [ActionReceipt.Item(action: "mailDraft", outcome: "done", name: "“Re: Nebenkosten 2025”")], cards: cards)
+        let round = (try? JSONEncoder().encode(receipt)).flatMap { try? JSONDecoder().decode(ActionReceipt.self, from: $0) }
+        let old = try? JSONDecoder().decode(ActionReceipt.self, from: Data(#"{"items":[{"action":"mailDraft","outcome":"done","name":"“Alt”"}]}"#.utf8))
+
+        return saved.status == .saved && saved.isReply && saved.recipient == "Hausverwaltung Berger"
+            && saved.recipientAddress == "info@berger-hv.de" && saved.subject == "Re: Nebenkosten 2025"
+            && saved.body == replyDraft.body && saved.draftID == "d00001" && !saved.footer.isEmpty
+            && opened.status == .opened && !opened.isReply && opened.recipient == "anna@example.test"
+            && opened.recipientAddress == nil && opened.subject == "Termin am Freitag" && opened.draftID == "d00002"
+            && kept.recipient == nil && kept.recipientAddress == nil && kept.subject == "Re: Rückfrage"
+            && paste.status == .needsPaste && paste.body == replyDraft.body && paste.draftID == nil
+            && round?.cards == cards && old != nil && old?.cards == nil
+    }
+    check("Mail draft card receipt matching: hides done drafts one-to-one and keeps uncovered, failed, unclear and legacy receipts visible") {
+        let first = MailDraftCard(recipient: "anna@example.test", subject: "Erster Entwurf", body: "Text 1", status: .saved, isReply: true)
+        let r1 = PippaMCPWriteReceipt(action: "mailDraft", outcome: "done", name: PippaMCPWriteTools.quoted("Erster Entwurf"))
+        let r2 = PippaMCPWriteReceipt(action: "mailDraft", outcome: "done", name: PippaMCPWriteTools.quoted("Zweiter Entwurf"))
+        let rFail = PippaMCPWriteReceipt(action: "mailDraft", outcome: "failed", name: PippaMCPWriteTools.quoted("Fehlgeschlagen"))
+        let rUnclear = PippaMCPWriteReceipt(action: "mailDraft", outcome: "unclear", name: PippaMCPWriteTools.quoted("Unklar"))
+        let rCal = PippaMCPWriteReceipt(action: "calendarAdd", outcome: "done", name: "Termin")
+        let covered = ResultCard.coveredReceiptIndices(receipts: [r2, r1, rFail, rUnclear, rCal], cards: [.mailDraft(first)])
+        let legacy = ResultCard.coveredReceiptIndices(receipts: [r1], cards: [])
+        return covered == [1] && legacy.isEmpty
+    }
 }

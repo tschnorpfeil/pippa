@@ -103,14 +103,25 @@ struct MessageView: View, Equatable {
             if live || !message.steps.isEmpty || !(message.thinking ?? "").isEmpty || message.stopped == true {
                 WorkView(message: message, live: live, starting: starting, writing: writing, started: started, waiting: waiting)
             }
+            if let answered = message.answeredQuestions, !answered.isEmpty {
+                VStack(alignment: .leading, spacing: Space.s) {
+                    ForEach(answered) { item in
+                        AnsweredQuestionRow(item: item)
+                    }
+                }
+            }
             if !message.text.isEmpty {
                 MarkdownText(text: message.text, highlights: live ? [] : message.unsupportedDates ?? [])
             }
             if !live, let dates = message.unsupportedDates, !dates.isEmpty { DateNote(dates: dates) }
             if !message.cards.isEmpty { ResultCardsView(cards: message.cards, arrivingFrom: seen?.cards) }
-            if !message.receipts.isEmpty {
+            let coveredReceipts = ReceiptRow.coveredIndices(receipts: message.receipts, cards: message.cards)
+            let visibleReceipts = Array(message.receipts.enumerated()).filter {
+                !coveredReceipts.contains($0.offset)
+            }
+            if !visibleReceipts.isEmpty {
                 VStack(alignment: .leading, spacing: Space.s) {
-                    ForEach(Array(message.receipts.enumerated()), id: \.offset) { index, receipt in
+                    ForEach(visibleReceipts, id: \.offset) { index, receipt in
                         ReceiptRow(receipt: receipt, undoing: undoing.contains(ChatModel.undoKey(message.id, index)),
                                    undo: live ? nil : { chat.undo(receiptAt: index, in: message.id) })
                             .arrives(seen.map { index >= $0.receipts } ?? false,

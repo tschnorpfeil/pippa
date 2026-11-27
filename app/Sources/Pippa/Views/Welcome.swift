@@ -107,7 +107,6 @@ struct Welcome: View {
                     .fixedSize(horizontal: false, vertical: true)
                 Spacer(minLength: Space.s)
                 ActionPill(title: T("Add Files…", table: "App")) { addFiles() }
-                    .disabled(chat.isAnswering)
             }
             if !chat.attachments.isEmpty {
                 HStack(spacing: Space.m) {
@@ -120,7 +119,7 @@ struct Welcome: View {
                             }
                         }
                     }
-                    if chat.canMakePDF && !chat.isAnswering {
+                    if chat.canMakePDF && !chat.isMakingPDF {
                         ActionPill(title: T("One PDF", table: "App"), primary: true) { chat.makePDF() }
                             .help(T("Make one PDF from these files, right here on your Mac", table: "App"))
                     }

@@ -6,7 +6,8 @@ import Foundation
 //
 // Rules for every tool:
 // - one action class each (PippaMCPActionClass.swift): it decides the annotations and whether a card asks first;
-// - terse: at most `PippaMCPTools.maxResultBytes` per result, truncations are announced, never silent;
+// - terse: at most `PippaMCPTools.maxResultBytes` per result text, truncations are announced, never silent; a successful
+//   read may add `structuredContent` up to `structuredMaxResultBytes` for codemode scripts (Pi never shows it to the model);
 // - foreign content (mail, events, cells) goes under `data` with `untrusted: true` and a rule for it;
 // - no permission, app not open, error: `isError: true` and one sentence for the person in the app language (`tell`),
 //   saying what to click or open. Never "empty" when nothing was read.
@@ -16,6 +17,8 @@ public struct PippaMCPTools: Sendable {
     /// Newest first; Pi 1.0.4 knows all four.
     public static let protocolVersions = ["2025-11-25", "2025-06-18", "2025-03-26", "2024-11-05"]
     public static let maxResultBytes = 8000
+    /// The cap for `structuredContent` of a successful read: codemode scripts get whole pages, still bounded.
+    public static let structuredMaxResultBytes = 131_072
     /// The selected mail and Excel selection are read through `front_read` with that app's chip (same readers, same receipts).
     public static let toolNames = ["calendar_read", "reminders_read", "mail_search", "mail_read", "mail_folders", "photos_search", "front_read",
                                    PippaMCPNotesTool.name, PippaMCPContactsTool.name, PippaMCPComputeTool.name]
@@ -176,14 +179,14 @@ public struct PippaMCPTools: Sendable {
                 var note = Self.readNote(name, ToolInput(name, [:]), outcome, calendar: host.calendar)
                 note.turnID = context.turn?.id
                 host.turns.whileActive(context.turn, generation: context.turnGeneration) { host.onRead?(note) }
-                return Self.toolResult(id: id, outcome.text, isError: outcome.isError)
+                return Self.toolResult(id: id, outcome)
             }
             if name == PippaMCPContactsTool.name {
                 let outcome = await PippaMCPContactsTool(host: host, store: host.contacts).call(arguments)
                 var note = Self.readNote(name, ToolInput(name, [:]), outcome, calendar: host.calendar)
                 note.turnID = context.turn?.id
                 host.turns.whileActive(context.turn, generation: context.turnGeneration) { host.onRead?(note) }
-                return Self.toolResult(id: id, outcome.text, isError: outcome.isError)
+                return Self.toolResult(id: id, outcome)
             }
             // Reading a document and looking up online live in PippaMCPTurn.swift (own arguments, own limits).
             if PippaMCPTurnTools.names.contains(name) {
@@ -216,12 +219,17 @@ public struct PippaMCPTools: Sendable {
             if PippaMCPWriteTools.names.contains(name) {
                 let outcome = await PippaMCPWriteTools(host: host, scope: context.writes).call(name, arguments)
                 if let receipt = outcome.receipt { host.onWrite?(receipt) }
+                if let card = outcome.card, !outcome.isError, !context.writes.snapshot.cancelled {
+                    var note = PippaMCPReadNote(tool: name, read: true, line: outcome.receipt?.name ?? name, card: card)
+                    note.turnID = context.turn?.id
+                    host.turns.whileActive(context.turn, generation: context.turnGeneration) { host.onRead?(note) }
+                }
                 let visible = host.egress?.scrubWriter(name, outcome) ?? outcome
                 return Self.toolResult(id: id, visible.text, isError: visible.isError)
             }
             let input = ToolInput(name, arguments)
             let outcome = await call(name, input, context: context)
-            return Self.toolResult(id: id, outcome.text, isError: outcome.isError)
+            return Self.toolResult(id: id, outcome)
         default:
             return Self.error(id: id, code: -32601, message: "Method not found")
         }
@@ -243,7 +251,9 @@ public struct PippaMCPTools: Sendable {
             browserHost.browserApprovals = online.approvals
             browserHost.onBrowserHandoff = nil
         }
-        var (outcome, note) = await PippaMCPBrowserTool(host: browserHost, turn: context.turn?.id, writes: context.writes).call(arguments)
+        // Each conversation browses in its own tab: its pages, refs and snapshot ids never reach another conversation.
+        var (outcome, note) = await PippaMCPBrowserTool(host: browserHost, turn: context.turn?.id, conversation: context.turn?.writes.conversation,
+                                                        writes: context.writes).call(arguments)
         defer {
             note.turnID = context.turn?.id
             host.onRead?(note)
@@ -272,6 +282,17 @@ public struct PippaMCPTools: Sendable {
     /// The reply to `tools/call`: the text for the model and whether it is an error.
     static func toolResult(id: Any, _ text: String, isError: Bool) -> [String: Any] {
         result(id: id, ["content": [["type": "text", "text": text]], "isError": isError])
+    }
+    /// The same with a reader's `structuredContent`, only on success: refusals and errors never carry it.
+    static func toolResult(id: Any, _ outcome: PippaMCPToolResult) -> [String: Any] {
+        var reply = toolResult(id: id, outcome.text, isError: outcome.isError)
+        if !outcome.isError, let structured = outcome.structured,
+           let object = (try? JSONSerialization.jsonObject(with: Data(structured.utf8))) as? [String: Any],
+           var value = reply["result"] as? [String: Any] {
+            value["structuredContent"] = object
+            reply["result"] = value
+        }
+        return reply
     }
     static func error(id: Any, code: Int, message: String) -> [String: Any] {
         ["jsonrpc": "2.0", "id": id, "error": ["code": code, "message": message]]

@@ -166,6 +166,9 @@ public struct PippaMCPToolResult: Sendable, Equatable {
     public var card: ResultCard? = nil
     /// Kept outside model-visible text; only native access checks can supply a repair destination.
     public var permissionRepair: PermissionRepairTarget? = nil
+    /// A successful read's fuller JSON envelope (at most `PippaMCPTools.structuredMaxResultBytes`), sent as MCP
+    /// `structuredContent`. Pi gives it to codemode scripts, never to the model directly, which sees only `text`.
+    public var structured: String? = nil
 
     public init(text: String, isError: Bool, receipt: PippaMCPWriteReceipt? = nil, card: ResultCard? = nil,
                 permissionRepair: PermissionRepairTarget? = nil) {

@@ -64,6 +64,33 @@ extension PiInstaller {
         } catch { return false }
     }
 
+    /// Writes the default effort for an online model into Pi's settings.json (atomically, keeping everything else and
+    /// never overwriting an existing per-model override or global `defaultThinkingLevel`). Honors `agentDirectory` when
+    /// provided (e.g. `PI_CODING_AGENT_DIR`), otherwise falls back to `roots.piSettingsJSON`. Returns `false` if
+    /// settings.json is unreadable JSON without touching the file.
+    @discardableResult
+    public func writeOnlineModelEffort(providerID: String, modelID: String, supportedEfforts: [String]?,
+                                       agentDirectory: URL? = nil) -> Bool {
+        guard PiModelTuning.defaultOnlineEffort(supportedEfforts: supportedEfforts) != nil else { return true }
+        let url = agentDirectory?.appendingPathComponent("settings.json") ?? roots.piSettingsJSON
+        let existed = fm.fileExists(atPath: url.path)
+        var document: [String: Any] = [:]
+        if existed {
+            guard let object = JSONFile.readObject(url) else { return false }
+            document = object
+        }
+        let merged = PiModelTuning.mergeOnlineEffort(into: document, providerID: providerID, modelID: modelID,
+                                                     supportedEfforts: supportedEfforts)
+        if existed, JSONFile.canonical(merged) == JSONFile.canonical(document) { return true }
+        if !existed, merged.isEmpty { return true }
+        do {
+            try makeDirectory(url.deletingLastPathComponent())
+            try JSONFile.writeAtomically(JSONFile.encode(merged), to: url)
+            if !existed, url.standardizedFileURL == roots.piSettingsJSON.standardizedFileURL { state.record(url); save() }
+            return true
+        } catch { return false }
+    }
+
     /// The document for a merge into models.json: empty when the file does not exist yet. A file that is not JSON (also:
     /// comments, which Pi allows) or has no object under `providers` is `modelsJSONUnreadable` and stays unchanged.
     static func loadModelsJSON(_ url: URL) throws -> (document: [String: Any], existed: Bool) {

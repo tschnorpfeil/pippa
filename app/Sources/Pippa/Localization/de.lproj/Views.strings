@@ -15,7 +15,11 @@
 "“%@” in Mail" = "„%@“ in Mail";
 "“%@” in Photos" = "„%@“ in Fotos";
 "Meanwhile, drop photos or PDFs here to make one PDF." = "Inzwischen kannst du Fotos oder PDFs hier ablegen und daraus ein PDF machen.";
-"Choose…" = "Auswählen …";
+"Choose" = "Auswählen";
+"Or type your own answer…" = "Oder eigene Antwort eingeben …";
+"Allowed" = "Erlaubt";
+"Declined" = "Abgelehnt";
+"Cancelled" = "Abgebrochen";
 
 /* Pippa's browser panel (BrowserPanelView.swift) */
 "Back" = "Zurück";
@@ -37,6 +41,15 @@
 "The website couldn’t be loaded. Try again." = "Die Webseite konnte nicht geladen werden. Versuche es erneut.";
 
 "Wait for Pippa to finish before opening a website." = "Warte, bis Pippa fertig ist, bevor du eine Webseite öffnest.";
+
+/* Browser tabs per conversation, sign-in windows, opening a page the answer read (BrowserPanelView, SourceChips). */
+"Open in Pippa’s Browser" = "In Pippas Browser öffnen";
+"Open %@ in Pippa" = "%@ in Pippa öffnen";
+"Window from %@" = "Fenster von %@";
+"New window" = "Neues Fenster";
+"Close this window and go back to the page" = "Fenster schließen und zurück zur Seite";
+"Close tab" = "Tab schließen";
+"Waiting for you" = "Wartet auf dich";
 
 /* Proactive Pippa: For You, routines. */
 "%lld days" = "%lld Tage";
@@ -177,3 +190,16 @@
 "Your routines" = "Deine Routinen";
 "in For You and Pippa Island" = "in „Für dich“ und Pippa Island";
 "quietly in For You" = "still in „Für dich“";
+
+/* Mail draft preview card (MailCardView.swift) */
+"Draft in Mail, not sent" = "Entwurf in Mail, nicht gesendet";
+"Email open in Mail, not sent" = "E-Mail in Mail offen, nicht gesendet";
+"Reply open in Mail — paste text" = "Antwort in Mail offen – Text einfügen";
+"Not sent" = "Nicht gesendet";
+"Paste in Mail" = "In Mail einfügen";
+"To" = "An";
+"Subject" = "Betreff";
+"Mail didn’t confirm the text. Copy it below and paste it into the open reply." = "Mail hat den Text nicht bestätigt. Kopier ihn unten und füg ihn in die offene Antwort ein.";
+"Show full draft" = "Ganzen Entwurf zeigen";
+"Copy text" = "Text kopieren";
+"Copied" = "Kopiert";

@@ -154,12 +154,30 @@ struct IslandQuestionAnswers: View {
             }
         } else if request.method == "select" {
             // Every choice in sight, one row each and in full: a pop-up menu hid them behind a click and opened over
-            // the island.
+            // the island. When `ask.ts` appends its "Something else…" sentinel, show an inline text field on the same card.
+            let choices = ApprovalChoices.parse(request.options)
+            let canSendCustom = ApprovalChoices.validatedText(textState.wrappedValue) != nil
             VStack(alignment: .leading, spacing: IslandStyle.gap) {
                 VStack(spacing: 6) {
-                    ForEach(request.options, id: \.self) { option in
+                    ForEach(choices.options, id: \.self) { option in
                         Button(option) { Approvals.shared.answer(question.id, .value(option)) }
                             .buttonStyle(IslandChoiceStyle())
+                            .accessibilityLabel(option)
+                    }
+                }
+                if choices.allowsCustomText {
+                    HStack(spacing: IslandStyle.buttonGap) {
+                        TextField(T("Or type your own answer…", table: "Island"), text: textState.projectedValue,
+                                  prompt: Text(T("Or type your own answer…", table: "Island")).foregroundStyle(IslandStyle.white(IslandStyle.secondary)))
+                            .textFieldStyle(.plain).font(IslandStyle.small)
+                            .foregroundStyle(IslandStyle.white(IslandStyle.primary))
+                            .onSubmit { submitText() }
+                            .islandWell()
+                            .accessibilityLabel(T("Or type your own answer…", table: "Island"))
+                        Button(T("Send", table: "App")) { submitText() }
+                            .buttonStyle(IslandButtonStyle(prominent: true))
+                            .disabled(!canSendCustom)
+                            .opacity(canSendCustom ? 1 : 0.45)
                     }
                 }
                 IslandButtonRow(lead: true) {
@@ -178,19 +196,28 @@ struct IslandQuestionAnswers: View {
     @ViewBuilder private var answers: some View {
         switch request.method {
         default:
+            let canSubmit = ApprovalChoices.validatedText(textState.wrappedValue) != nil
             VStack(alignment: .leading, spacing: IslandStyle.buttonGap) {
                 TextField(request.placeholder ?? "", text: textState.projectedValue,
                           prompt: Text(request.placeholder ?? "").foregroundStyle(IslandStyle.white(IslandStyle.secondary)))
                     .textFieldStyle(.plain).font(IslandStyle.body)
                     .foregroundStyle(IslandStyle.white(IslandStyle.primary))
-                    .onSubmit { Approvals.shared.answer(question.id, .value(textState.wrappedValue)) }
+                    .onSubmit { submitText() }
                     .islandWell()
                 IslandButtonRow {
                     button(T("Cancel", table: "App"), .cancelled)
-                    button(T("OK", table: "App"), .value(textState.wrappedValue), prominent: true)
+                    Button(T("OK", table: "App")) { submitText() }
+                        .buttonStyle(IslandButtonStyle(prominent: true))
+                        .disabled(!canSubmit)
+                        .opacity(canSubmit ? 1 : 0.45)
                 }
             }
         }
+    }
+
+    private func submitText() {
+        guard let value = ApprovalChoices.validatedText(textState.wrappedValue) else { return }
+        Approvals.shared.answer(question.id, .value(value))
     }
 
     private func button(_ title: String, _ response: PiUIResponse, prominent: Bool = false) -> some View {

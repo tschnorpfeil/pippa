@@ -16,6 +16,20 @@ export function allowedSignInURL(value) {
   } catch { return false; }
 }
 
+const THINKING_LEVELS = ['off', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max'];
+
+/** Mirrors Pi 1.6.0's `getSupportedThinkingLevels(model)`. Returns `undefined` when `reasoning` is absent. */
+function supportedEfforts(model) {
+  if (typeof model?.reasoning !== 'boolean') return undefined;
+  if (!model.reasoning) return ['off'];
+  const map = model.thinkingLevelMap;
+  return THINKING_LEVELS.filter(level => {
+    if (map?.[level] === null) return false;
+    if ((level === 'xhigh' || level === 'max') && map?.[level] === undefined) return false;
+    return true;
+  });
+}
+
 /** Only public catalog metadata leaves Pi; no auth result or credential object is serialized. `defaults` is Pi's own
  * model choice per provider (`defaultModelPerProvider`), named only when that model is on the provider's list. */
 export function catalog(runtime, defaults = {}) {
@@ -29,7 +43,10 @@ export function catalog(runtime, defaults = {}) {
     const defaultModel = models.some(model => model.id === defaults[provider.id]) ? defaults[provider.id] : undefined;
     return {
       id: provider.id, name: clean(provider.name), configured, methods,
-      models: models.map(model => ({ id: model.id, name: clean(model.name) })),
+      models: models.map(model => {
+        const efforts = supportedEfforts(model);
+        return { id: model.id, name: clean(model.name), ...(efforts ? { supportedEfforts: efforts } : {}) };
+      }),
       ...(defaultModel ? { defaultModel } : {}),
     };
   }) };

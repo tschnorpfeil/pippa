@@ -199,7 +199,7 @@ extension PippaMCPTools {
         let searchCount = reservedFreshSearch ? await turn?.commitMailSearch() : nil
         var result = await mailSearchAccounts(reader, input, query: query, readStatus: readStatus, mailbox: mailbox, limit: limit, turn: turn)
         if searchCount == searchCap {
-            result.text = Self.withStop(result.text, count: searchCap)
+            Self.withStop(&result, count: searchCap)
         }
         return result
     }
@@ -242,9 +242,9 @@ extension PippaMCPTools {
             var result = Self.bounded(source: query.isEmpty ? "Mail on this Mac (newest in the inbox)" : "Mail on this Mac (inbox search by subject or sender)",
                                       data: ["query": query, "unread": unread, "read_status": readStatus.rawValue, "mails": mails, "shown": mails.count, "total": fetch.total,
                                              "truncated": fetch.total > mails.count],
-                                      next: next)
+                                      next: next, structured: true)
             if let searchCount, searchCount == searchCap {
-                result.text = Self.withStop(result.text, count: searchCount)
+                Self.withStop(&result, count: searchCount)
             }
             if !fetch.items.isEmpty {
                 result.card = .mail(MailCard(query: query, unread: unread, mails: fetch.items, total: fetch.total, calendar: host.calendar))
@@ -274,6 +274,15 @@ extension PippaMCPTools {
 
     /// The stop sentence in place of the result's own `next` (a failed search keeps its text). An active cursor keeps its
     /// paging guidance, and accounts that were not read stay named: stopping never turns a partial search into "nothing else there".
+    /// The stop in the text and in `structuredContent`, which keeps its cap (else it keeps its earlier `next`).
+    static func withStop(_ result: inout PippaMCPToolResult, count: Int) {
+        result.text = withStop(result.text, count: count)
+        if let structured = result.structured {
+            let stopped = withStop(structured, count: count)
+            if stopped.utf8.count <= structuredMaxResultBytes { result.structured = stopped }
+        }
+    }
+
     static func withStop(_ text: String, count: Int) -> String {
         guard var object = (try? JSONSerialization.jsonObject(with: Data(text.utf8))) as? [String: Any], object["next"] != nil else { return text }
         let data = object["data"] as? [String: Any]

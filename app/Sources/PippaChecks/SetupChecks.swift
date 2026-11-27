@@ -393,6 +393,76 @@ func runSetupChecks() async {
             && listed.last?["reasoning"] == nil && listed.last?["thinkingLevelMap"] == nil
     }
 
+    check("Online model effort: picks medium when supported, falls back cleanly, never overwrites user overrides, and keeps unreadable files untouched") {
+        guard PiModelTuning.defaultOnlineEffort(supportedEfforts: nil) == nil,
+              PiModelTuning.defaultOnlineEffort(supportedEfforts: []) == nil,
+              PiModelTuning.defaultOnlineEffort(supportedEfforts: ["off"]) == "off",
+              PiModelTuning.defaultOnlineEffort(supportedEfforts: ["off", "low", "medium", "high"]) == "medium",
+              PiModelTuning.defaultOnlineEffort(supportedEfforts: ["off", "high", "low"]) == "low",
+              PiModelTuning.defaultOnlineEffort(supportedEfforts: ["off", "high", "xhigh"]) == "high",
+              PiModelTuning.defaultOnlineEffort(supportedEfforts: ["off", "minimal"]) == "minimal",
+              PiModelTuning.defaultOnlineEffort(supportedEfforts: ["xhigh", "max"]) == "xhigh" else { return false }
+
+        let home = fakeHome("online-effort"); defer { discard(home) }
+        let payload = try fakePayload(in: home.appendingPathComponent("src"))
+        let r = roots(home, payload)
+        try fm.createDirectory(at: r.agentDirectory, withIntermediateDirectories: true)
+        write(#"{"theme": "dark", "modelThinkingLevels": {"openai/existing": "high"}}"#, r.piSettingsJSON)
+        let installer = PiInstaller(roots: r)
+        let wroteMedium = installer.writeOnlineModelEffort(providerID: "openai", modelID: "gpt-5.5",
+                                                           supportedEfforts: ["off", "low", "medium", "high"])
+        let keptOverride = installer.writeOnlineModelEffort(providerID: "openai", modelID: "existing",
+                                                            supportedEfforts: ["off", "low", "medium", "high"])
+        let wroteNonReasoning = installer.writeOnlineModelEffort(providerID: "anthropic", modelID: "fast",
+                                                                 supportedEfforts: ["off"])
+        let skippedNil = installer.writeOnlineModelEffort(providerID: "google", modelID: "unknown", supportedEfforts: nil)
+        let doc = try JSONSerialization.jsonObject(with: Data(contentsOf: r.piSettingsJSON)) as? [String: Any]
+        let levels = doc?["modelThinkingLevels"] as? [String: String]
+
+        // A global defaultThinkingLevel set by the person stays untouched (no per-model entry overrides it).
+        let globalHome = fakeHome("online-effort-global"); defer { discard(globalHome) }
+        let globalRoots = roots(globalHome, payload)
+        let customAgent = globalHome.appendingPathComponent("custom-agent", isDirectory: true)
+        try fm.createDirectory(at: customAgent, withIntermediateDirectories: true)
+        write(#"{"defaultThinkingLevel": "high"}"#, customAgent.appendingPathComponent("settings.json"))
+        let keptGlobal = PiInstaller(roots: globalRoots).writeOnlineModelEffort(providerID: "openai", modelID: "gpt-5.5",
+                                                                                supportedEfforts: ["off", "low", "medium", "high"],
+                                                                                agentDirectory: customAgent)
+        let globalDoc = try JSONSerialization.jsonObject(with: Data(contentsOf: customAgent.appendingPathComponent("settings.json"))) as? [String: Any]
+        // Custom agentDirectory without global override writes into that directory, not roots.piSettingsJSON.
+        let customAgent2 = globalHome.appendingPathComponent("custom-agent-2", isDirectory: true)
+        let wroteCustom = PiInstaller(roots: globalRoots).writeOnlineModelEffort(providerID: "openai", modelID: "gpt-5.5",
+                                                                                 supportedEfforts: ["off", "low", "medium", "high"],
+                                                                                 agentDirectory: customAgent2)
+        let customDoc = try JSONSerialization.jsonObject(with: Data(contentsOf: customAgent2.appendingPathComponent("settings.json"))) as? [String: Any]
+
+        // Missing metadata on a fresh home creates no settings.json.
+        let freshHome = fakeHome("online-effort-fresh"); defer { discard(freshHome) }
+        let freshRoots = roots(freshHome, payload)
+        let freshSkipped = PiInstaller(roots: freshRoots).writeOnlineModelEffort(providerID: "openai", modelID: "m", supportedEfforts: nil)
+
+        // Unreadable settings.json stays untouched and returns false.
+        let badHome = fakeHome("online-effort-bad"); defer { discard(badHome) }
+        let badRoots = roots(badHome, payload)
+        try fm.createDirectory(at: badRoots.agentDirectory, withIntermediateDirectories: true)
+        let brokenJSON = "{ // comment\n }\n"
+        write(brokenJSON, badRoots.piSettingsJSON)
+        let refused = PiInstaller(roots: badRoots).writeOnlineModelEffort(providerID: "openai", modelID: "gpt-5.5",
+                                                                          supportedEfforts: ["off", "medium"])
+
+        return wroteMedium && keptOverride && wroteNonReasoning && skippedNil
+            && doc?["theme"] as? String == "dark"
+            && levels?["openai/gpt-5.5"] == "medium"
+            && levels?["openai/existing"] == "high"
+            && levels?["anthropic/fast"] == "off"
+            && levels?["google/unknown"] == nil
+            && keptGlobal && globalDoc?["defaultThinkingLevel"] as? String == "high" && globalDoc?["modelThinkingLevels"] == nil
+            && wroteCustom && (customDoc?["modelThinkingLevels"] as? [String: String])?["openai/gpt-5.5"] == "medium"
+            && !fm.fileExists(atPath: globalRoots.piSettingsJSON.path)
+            && freshSkipped && !fm.fileExists(atPath: freshRoots.piSettingsJSON.path)
+            && !refused && (try? String(contentsOf: badRoots.piSettingsJSON, encoding: .utf8)) == brokenJSON
+    }
+
     check("Installer: model adopted without asking via clone, hardlink or copy into <models>/<key>/; originals stay") {
         let home = fakeHome("adopt"); defer { discard(home) }
         let payload = try fakePayload(in: home.appendingPathComponent("src"))

@@ -121,15 +121,19 @@ extension ChatModel {
         ask(T("Continue", table: "App"), files: [], outgoing: outgoing, in: id, destination: destination?.label)
     }
 
-    /// A failure mid-answer as one plain sentence: an online provider's ("401 {…}", "usage limit"), or the AI on this Mac
-    /// running out of memory (the raw text goes to the log, not the chat); anything else as Pi said it.
+    /// A failure mid-answer as one plain sentence: an online provider's ("401 {…}", "usage limit") by its fixed class,
+    /// or the AI on this Mac running out of memory; any other local failure as Pi said it. Each failure leaves a
+    /// `ki-fehler` line with its class and status only, never the raw text (keys, addresses, the question).
     static func modelError(_ error: String, online: Bool) -> String {
+        let failure = PiProviderClient.classify(errorText: error)
+        failure.record(online: online)
         if let plain = OMLXServer.plainFailure(error, online: online) {
             DiagnosticsLog.shared.event("ki-zu-wenig-speicher", ["text": error])
             return plain
         }
-        guard online, let problem = PiProviderClient.problem(in: error) else { return error }
-        return limitMessage(problem)
+        guard online else { return error }
+        if let problem = failure.problem { return limitMessage(problem) }
+        return failure.onlineText ?? UserMessage.generic
     }
 
     /// The sentence for an online AI's problem: a used-up allowance, too many requests for now, or a lost sign-in.

@@ -70,6 +70,13 @@ enum WindowLifecycleChecks {
             print("– This WebKit cannot disable managed sign-in, so online browsing is unavailable")
             skipped += 1
         }
+        // A23, A24: tabs per conversation, the 16-GB pool, sign-in popups and the online view, also in the real app.
+        await ApprovalsChecks.runBrowserPoolChecks { ok, name in check(name, ok) }
+        WKBrowserSession.shared.selectConversation("lifecycle-a")
+        WKBrowserSession.shared.selectConversation(nil)
+        check("Switching chats switches the shared browser panel's tab and back",
+              WKBrowserSession.shared.displayedKey == WKBrowserSession.defaultKey && WKBrowserSession.shared.tabs["lifecycle-a"] != nil
+              && WKBrowserSession.shared.tabs["lifecycle-a"]?.webView == nil)
         func foregroundCheck(_ name: String, _ result: Bool) {
             if foregroundAvailable { check(name, result) }
             else { skipped += 1; print("– \(name): foreground check skipped (isolated app is not active)") }

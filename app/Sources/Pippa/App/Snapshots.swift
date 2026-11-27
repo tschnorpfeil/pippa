@@ -127,6 +127,13 @@ enum Snapshots {
                 chat.showSample(sampleConversations(answering: true), current: "c1", answering: true)
                 askSampleQuestion()
             }, 760, false, false),
+            // One-card select question with direct options + inline free-text, plus a persisted answered question above.
+            ("ask-select", {
+                chat.showSample(sampleAnsweredQuestion() + sampleConversations(), current: "ask", answering: true)
+                askSampleSelect()
+            }, 760, false, false),
+            // mail_draft: expandable unsent Mail draft card (saved + needs-paste states).
+            ("mail-draft-card", { chat.showSample(sampleMailDraft() + sampleConversations(), current: "draft", answering: false) }, 920, false, false),
             // mail_send: the card with the draft as Mail has it (a long text scrolls inside the card), then its receipt.
             ("mail-send-card", {
                 chat.showSample(sampleConversations(answering: true), current: "c1", answering: true)
@@ -260,6 +267,49 @@ enum Snapshots {
             _ = await approvals.ask(request)
             approvals.dismiss("snapshot")
         }
+    }
+
+    private static func askSampleSelect() {
+        let approvals = Approvals.shared
+        for _ in 0..<20 where approvals.hasPresenter { approvals.dismiss("chat") }
+        approvals.present("snapshot")
+        let request = PiUIRequest(id: "snapshot-select", method: "select", title: "Welchen Kalender meinst du?",
+                                  message: "", options: ["Privat", "Arbeit", "Familie", "Etwas anderes …"])
+        Task {
+            _ = await approvals.ask(request)
+            approvals.dismiss("snapshot")
+        }
+    }
+
+    private static func sampleAnsweredQuestion() -> [Conversation] {
+        var reply = ChatMessage(role: .assistant, text: "")
+        reply.answeredQuestions = [
+            AnsweredQuestion(id: "snapshot-answered", kind: .confirm, title: "Darf Pippa im Internet suchen?",
+                             detail: "„aktuelle Kosten MSCI World ETF Sparplan“",
+                             answer: "Erlauben", outcome: .allowed, answeredAt: Date()),
+        ]
+        return [Conversation(id: "ask", title: "Termin eintragen", updated: Date(), messages: [
+            ChatMessage(role: .user, text: "Trag bitte am Freitag um 15 Uhr Zahnarzt ein."), reply,
+        ])]
+    }
+
+    private static func sampleMailDraft() -> [Conversation] {
+        let saved = MailDraftCard(
+            recipient: "Anna Weber", recipientAddress: "anna@example.org",
+            subject: "Wohnungsübergabe am Freitag",
+            body: "Hallo Anna,\n\npasst dir Freitag um 10 Uhr für die Übergabe der Wohnung? Ich bringe beide Schlüssel und das Protokoll mit.\n\nViele Grüße\nTobias",
+            status: .saved, isReply: false, draftID: "42", footer: "Mail auf diesem Mac")
+        let paste = MailDraftCard(
+            recipient: "Hausverwaltung Berger", recipientAddress: "service@berger.example",
+            subject: "Re: Nebenkostenabrechnung 2025",
+            body: "Sehr geehrte Damen und Herren,\n\nvielen Dank für die Abrechnung. Bitte bestätigen Sie kurz die neue Vorauszahlung ab Dezember.\n\nMit freundlichen Grüßen",
+            status: .needsPaste, isReply: true, draftID: nil, footer: "Mail auf diesem Mac")
+        var answer = ChatMessage(role: .assistant, text: "Ich habe beide Entwürfe vorbereitet. Nichts wurde gesendet.")
+        answer.cards = [.mailDraft(saved), .mailDraft(paste)]
+        answer.duration = 7
+        return [Conversation(id: "draft", title: "Mail-Entwürfe", updated: Date(), messages: [
+            ChatMessage(role: .user, text: "Schreib Anna wegen Freitag und antworte der Hausverwaltung."), answer,
+        ])]
     }
 
     /// The card `mail_send` shows before it sends, built by the server's own code from a made-up draft.

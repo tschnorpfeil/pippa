@@ -81,4 +81,35 @@ public enum PiModelTuning {
         if !levels.isEmpty { document["modelThinkingLevels"] = levels }
         return document
     }
+
+    /// Default effort for a newly activated online model: `"medium"` when supported, else the closest reasoning level
+    /// (`low`, `high`, `minimal`, `xhigh`, `max`, or the first reasoning level), or `"off"` for non-reasoning models.
+    public static func defaultOnlineEffort(supportedEfforts: [String]?) -> String? {
+        guard let supportedEfforts, !supportedEfforts.isEmpty else { return nil }
+        let reasoning = supportedEfforts.filter { $0 != "off" }
+        guard !reasoning.isEmpty else {
+            return supportedEfforts.contains("off") ? "off" : nil
+        }
+        if reasoning.contains("medium") { return "medium" }
+        for candidate in ["low", "high", "minimal", "xhigh", "max"] where reasoning.contains(candidate) {
+            return candidate
+        }
+        return reasoning.first
+    }
+
+    /// Merges the default effort for an online model (`"<providerID>/<modelID>"`) into `modelThinkingLevels`.
+    /// Never overwrites an existing per-model override or a user-configured global `defaultThinkingLevel`.
+    public static func mergeOnlineEffort(into document: [String: Any], providerID: String, modelID: String,
+                                         supportedEfforts: [String]?) -> [String: Any] {
+        guard !providerID.isEmpty, !modelID.isEmpty,
+              document["defaultThinkingLevel"] == nil,
+              let effort = defaultOnlineEffort(supportedEfforts: supportedEfforts) else { return document }
+        let key = providerID + "/" + modelID
+        var document = document
+        var levels = document["modelThinkingLevels"] as? [String: Any] ?? [:]
+        guard levels[key] == nil else { return document }
+        levels[key] = effort
+        document["modelThinkingLevels"] = levels
+        return document
+    }
 }

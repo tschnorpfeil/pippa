@@ -15,7 +15,11 @@
 "“%@” in Mail" = "“%@” in Mail";
 "“%@” in Photos" = "“%@” in Photos";
 "Meanwhile, drop photos or PDFs here to make one PDF." = "Meanwhile, drop photos or PDFs here to make one PDF.";
-"Choose…" = "Choose…";
+"Choose" = "Choose";
+"Or type your own answer…" = "Or type your own answer…";
+"Allowed" = "Allowed";
+"Declined" = "Declined";
+"Cancelled" = "Cancelled";
 
 /* Pippa's browser panel (BrowserPanelView.swift) */
 "Back" = "Back";
@@ -37,6 +41,15 @@
 "The website couldn’t be loaded. Try again." = "The website couldn’t be loaded. Try again.";
 
 "Wait for Pippa to finish before opening a website." = "Wait for Pippa to finish before opening a website.";
+
+/* Browser tabs per conversation, sign-in windows, opening a page the answer read (BrowserPanelView, SourceChips). */
+"Open in Pippa’s Browser" = "Open in Pippa’s Browser";
+"Open %@ in Pippa" = "Open %@ in Pippa";
+"Window from %@" = "Window from %@";
+"New window" = "New window";
+"Close this window and go back to the page" = "Close this window and go back to the page";
+"Close tab" = "Close tab";
+"Waiting for you" = "Waiting for you";
 
 /* Proactive Pippa: For You, routines. */
 "%lld days" = "%lld days";
@@ -177,3 +190,16 @@
 "Your routines" = "Your routines";
 "in For You and Pippa Island" = "in For You and Pippa Island";
 "quietly in For You" = "quietly in For You";
+
+/* Mail draft preview card (MailCardView.swift) */
+"Draft in Mail, not sent" = "Draft in Mail, not sent";
+"Email open in Mail, not sent" = "Email open in Mail, not sent";
+"Reply open in Mail — paste text" = "Reply open in Mail — paste text";
+"Not sent" = "Not sent";
+"Paste in Mail" = "Paste in Mail";
+"To" = "To";
+"Subject" = "Subject";
+"Mail didn’t confirm the text. Copy it below and paste it into the open reply." = "Mail didn’t confirm the text. Copy it below and paste it into the open reply.";
+"Show full draft" = "Show full draft";
+"Copy text" = "Copy text";
+"Copied" = "Copied";

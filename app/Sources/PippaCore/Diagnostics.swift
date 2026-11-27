@@ -121,6 +121,33 @@ public enum UserMessage {
     }
 }
 
+public extension ModelFailure {
+    /// What the log keeps of a failed model turn: the fixed class, online or not, and the status. Never the text.
+    func fields(online: Bool) -> [String: String] {
+        var fields = ["klasse": failureClass.rawValue, "online": online ? "true" : "false"]
+        if let httpStatus { fields["status"] = String(httpStatus) }
+        return fields
+    }
+
+    func record(online: Bool, to log: DiagnosticsLog = .shared) { log.event("ki-fehler", fields(online: online)) }
+
+    /// The everyday sentence for an online AI's failure. `nil` for sign-in and limits: the app words those itself
+    /// (`ChatModel.limitMessage`), as the chat offers Settings or Continue for them.
+    var onlineText: String? {
+        switch failureClass {
+        case .authentication, .rateLimited, .quotaExhausted: nil
+        case .permission: L("Your account with this online AI doesn’t allow this right now. Check your account, or choose another AI in Settings.", table: "Core")
+        case .timeout: L("The answer didn’t come through just now. Please try again in a moment.", table: "Core")
+        case .unavailable: L("The online AI isn’t available right now. Please try again in a few minutes.", table: "Core")
+        case .offline: L("There’s no internet connection right now. Check your Wi-Fi or cable, then try again.", table: "Core")
+        case .invalidRequest: L("The online AI couldn’t take this request. Check the AI you chose in Settings, or ask in other words.", table: "Core")
+        case .toolsUnsupported: L("The online AI you chose can’t work with Pippa’s tools. Choose another one in Settings.", table: "Core")
+        case .contextTooLarge: L("This conversation is too long for the online AI. Start a new chat, or send fewer or smaller files.", table: "Core")
+        case .unknown: UserMessage.generic
+        }
+    }
+}
+
 public extension AnswerFailureCode {
     /// Everyday sentence per code. `switch` without `default`: a new code breaks the build until it has a text.
     var fallbackText: String {

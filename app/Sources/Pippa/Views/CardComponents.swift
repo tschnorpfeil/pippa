@@ -107,24 +107,26 @@ struct ActionPill: View {
     var shortcut: KeyboardShortcut? = nil
     var action: () -> Void
     private let hoverState = State(initialValue: false)
+    @Environment(\.isEnabled) private var enabled
 
     var body: some View {
         let shape = Capsule()
         Button(action: action) {
             Text(title)
                 .font(Typo.footnote.weight(.medium))
-                .foregroundStyle(primary ? Color.white : Theme.ink)
+                .foregroundStyle(!enabled ? Theme.ink3 : (primary ? Color.white : Theme.ink))
                 .lineLimit(1)
                 .padding(.horizontal, Space.ml)
                 .frame(height: 26)
-                .background(primary ? (hoverState.wrappedValue ? Theme.accentPress : Theme.accentFill)
-                                    : (hoverState.wrappedValue ? Theme.fill3 : Theme.fill2), in: shape)
+                .background(!enabled ? Theme.fill2
+                                     : (primary ? (hoverState.wrappedValue ? Theme.accentPress : Theme.accentFill)
+                                                : (hoverState.wrappedValue ? Theme.fill3 : Theme.fill2)), in: shape)
                 .contentShape(shape)
         }
         .buttonStyle(.plain)
         .keyboardShortcut(shortcut)
         .fixedSize()
-        .onHover { hovering in withAnimation(Theme.quick) { hoverState.wrappedValue = hovering } }
+        .onHover { hovering in withAnimation(Theme.quick) { hoverState.wrappedValue = enabled && hovering } }
     }
 }
 

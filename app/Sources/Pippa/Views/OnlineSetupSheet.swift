@@ -50,9 +50,9 @@ struct OnlineSetupSheet: View {
     var body: some View {
         VStack(alignment: .leading, spacing: Space.xl) {
             Text(T("Use an Online AI", table: "Settings")).font(Typo.headline)
-            // The confirmation step says once where data goes; the general note belongs to the steps before it.
+            // The confirmation step says once where data goes; the strip belongs to the steps before it.
             if !confirmsProvider {
-                SettingsNote(T("No download. What you type goes to the provider you choose. Before anything from Mail, documents, Calendar, Reminders or Photos goes along, Pippa shows you the exact text. You can switch back to this Mac at any time in Settings.", table: "Settings"))
+                OnlineDataFlowStrip(providerName: pickedProvider?.name)
             }
             content
             if let problem = provider.problem, stage != .unavailable {
@@ -128,7 +128,7 @@ struct OnlineSetupSheet: View {
             SettingsNote(T("No chat models are available for this account yet. Refresh or reconnect to try again.", table: "Settings"))
             Button(T("Try again", table: "Settings")) { provider.refresh(online: true) }.pippa(.secondary).disabled(provider.busy)
         case .chooseModel(let item):
-            let matching = item.models.filter {
+            let matching = item.orderedModels().filter {
                 modelSearch.isEmpty || $0.name.localizedCaseInsensitiveContains(modelSearch) || $0.id.localizedCaseInsensitiveContains(modelSearch)
             }
             VStack(alignment: .leading, spacing: Space.m) {
@@ -147,6 +147,7 @@ struct OnlineSetupSheet: View {
                             Button { provider.modelID = model.id } label: {
                                 HStack(spacing: Space.m) {
                                     Text(model.name.isEmpty ? model.id : model.name).foregroundStyle(Theme.ink).lineLimit(1)
+                                    if model.id == item.defaultModel { RecommendedBadge() }
                                     Spacer(minLength: Space.xs)
                                     Image(systemName: "chevron.right").font(Typo.caption).foregroundStyle(Theme.ink3)
                                 }
@@ -165,19 +166,22 @@ struct OnlineSetupSheet: View {
                 .background(Theme.fill, in: RoundedRectangle(cornerRadius: Radius.control, style: .continuous))
             }
         case .activate(let item, let model):
-            connected(item, model: model.name.isEmpty ? model.id : model.name)
+            connected(item, model: model.name.isEmpty ? model.id : model.name, isRecommended: model.id == item.defaultModel)
         case .inUse(let item):
             connected(item, model: settings.inferenceSettings.activePiModel?.modelDisplayName ?? "")
         }
     }
 
-    private func connected(_ item: PiProvider, model: String) -> some View {
+    private func connected(_ item: PiProvider, model: String, isRecommended: Bool = false) -> some View {
         VStack(alignment: .leading, spacing: Space.m) {
             HStack(spacing: Space.m) {
                 Text(item.name).font(Typo.callout.weight(.semibold))
                 SettingsStatus(symbol: "checkmark.circle.fill", color: Theme.ok, text: T("Connected", table: "Settings"))
             }
-            Text(T("Model: %@", table: "Settings", model)).foregroundStyle(Theme.ink2)
+            HStack(spacing: Space.m) {
+                Text(T("Model: %@", table: "Settings", model)).foregroundStyle(Theme.ink2)
+                if isRecommended { RecommendedBadge() }
+            }
             SettingsNote(T("What you type will be sent to %@. Anything from your Mac goes along only after you check it.", table: "Settings", item.name))
         }
     }
@@ -204,6 +208,11 @@ struct OnlineSetupSheet: View {
     private func activate(_ item: PiProvider, _ model: PiProvider.Model) {
         do {
             try settings.saveInferenceSettings(FirstRunSetup.activated(settings.inferenceSettings, provider: item, model: model))
+            if let (roots, agent) = try? PiSession.installation(ProcessInfo.processInfo.environment) {
+                PiInstaller(roots: roots).writeOnlineModelEffort(providerID: item.id, modelID: model.id,
+                                                                 supportedEfforts: model.supportedEfforts,
+                                                                 agentDirectory: agent)
+            }
             close()
         } catch { provider.report(error) }
     }

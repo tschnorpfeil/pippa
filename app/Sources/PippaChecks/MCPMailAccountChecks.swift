@@ -729,6 +729,61 @@ extension MCPCheckContext {
             return pages.allSatisfy { $0.bytes <= PippaMCPTools.maxResultBytes && !$0.isError } && refs.count == 40 && Set(refs).count == 40
                 && none.bytes <= PippaMCPTools.maxResultBytes && !none.isError
         }
+        await checkAsync("Mail structuredContent: limit 100 keeps the text under 8 KB and the whole page in structuredContent, with its own cursor") {
+            let long = (1...120).map { n in stored("A", n, subject: "\(n) Rechnung " + String(repeating: "Beispiel ", count: 20)) }
+            func structuredWorld() -> (tools: PippaMCPTools, turns: PippaMCPTurns, demo: DemoIntegrations, notes: Box<PippaMCPReadNote>) {
+                world(FakeMailAccounts([(privat, long)]))
+            }
+            func refs(_ mails: [[String: Any]]) -> [String] { mails.compactMap { $0["mail_ref"] as? String } }
+            let w = structuredWorld()
+            let first = await structuredCall(w.tools, "mail_search", ["limit": 100])
+            let text = mails(first.reply), textData = data(first.reply)
+            let page = first.structured?["data"] as? [String: Any] ?? [:]
+            let rows = page["mails"] as? [[String: Any]] ?? []
+            guard case .mail(let card)? = w.notes.all.last?.card, text.count > 10, text.count < rows.count,
+                  let textCursor = cursor(first.reply), let rowCursor = page["cursor"] as? String else { return false }
+            // A row only structuredContent showed opens by its mail_ref.
+            let extra = await call(w.tools, "mail_read", ["mail_ref": refs(rows)[text.count + 1]])
+            // Continuing after the structured rows charges them: the 100-row budget of this answer is used up, and the
+            // text's cursor for the same page is gone.
+            let after = await structuredCall(w.tools, "mail_search", ["cursor": rowCursor, "limit": 100])
+            let paired = await call(w.tools, "mail_search", ["cursor": textCursor, "limit": 100])
+            // The text's cursor continues right after the text's last row.
+            let v = structuredWorld()
+            let start = await structuredCall(v.tools, "mail_search", ["limit": 100])
+            let startRows = (start.structured?["data"] as? [String: Any])?["mails"] as? [[String: Any]] ?? []
+            let shownText = mails(start.reply).count
+            let next = await structuredCall(v.tools, "mail_search", ["cursor": cursor(start.reply) ?? "", "limit": 100])
+            let nextRows = (next.structured?["data"] as? [String: Any])?["mails"] as? [[String: Any]] ?? []
+            return !first.reply.isError && first.reply.bytes <= PippaMCPTools.maxResultBytes && textData["truncated"] as? Bool == true
+                && rows.count == 100 && first.structuredBytes > PippaMCPTools.maxResultBytes && first.structuredBytes <= PippaMCPTools.structuredMaxResultBytes
+                && Array(refs(rows).prefix(text.count)) == refs(text) && refs(rows).count == 100 && Set(refs(rows)).count == 100
+                && rows.allSatisfy { row in long.contains { $0.header.subject == row["subject"] as? String } }
+                && text.contains { ($0["subject"] as? String ?? "").hasSuffix("…") }
+                && page["shown"] as? Int == 100 && textData["shown"] as? Int == text.count
+                && textCursor != rowCursor && !card.items.isEmpty
+                && extra.json["read"] as? Bool == true && !extra.isError
+                && after.reply.isError && after.reply.json["status"] as? String == "budget_reached" && after.structured == nil
+                && paired.isError && paired.json["status"] as? String == "stale_cursor"
+                && !next.reply.isError && nextRows.first?["subject"] as? String == startRows[shownText]["subject"] as? String
+                && data(next.reply)["first"] as? Int == shownText + 1
+        }
+        await checkAsync("Mail structuredContent: none on a refused or failed search") {
+            let demo = DemoIntegrations(granted: true)
+            var host = PippaMCPHost(integrations: demo, sheets: DemoSheetReader(granted: true), hostData: DemoHostData(integrations: demo, now: now),
+                                    askForAccess: false, now: { now }, calendar: berlin)
+            host.mailAccounts = twoAccounts()
+            host.turns = PippaMCPTurns()
+            host.egress = PippaMCPEgress(rules: SourceSharing(), web: false)
+            let online = await structuredCall(PippaMCPTools(host: host), "mail_search", ["limit": 100])
+            let fake = twoAccounts()
+            fake.failCandidates = [privat.id: MailAccountProblem.failed, arbeit.id: MailAccountProblem.failed]
+            let failed = await structuredCall(world(fake).tools, "mail_search", [:])
+            let folders = await structuredCall(world(twoAccounts()).tools, "mail_folders", ["account": "Verein"])
+            return online.reply.isError && online.reply.json["status"] as? String == "stays_on_mac" && online.structured == nil
+                && failed.reply.isError && failed.reply.json["read"] as? Bool == false && failed.structured == nil
+                && folders.reply.isError && folders.structured == nil
+        }
         await checkAsync("Mail refs: a mail moved to another folder of the same name, renamed or without Message-ID is never opened") {
             let fake = FakeMailAccounts([(privat, [stored("A", 1), stored("A", 2)]),
                                          (arbeit, [stored("B", 1), stored("B", 2, messageID: "")])])
