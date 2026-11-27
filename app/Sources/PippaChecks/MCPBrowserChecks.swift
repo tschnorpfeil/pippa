@@ -551,4 +551,92 @@ func runMCPBrowserChecks() async {
             && !fill.text.contains("654321")
             && !w.browser.actions.contains { if case .fill = $0 { true } else { false } }
     }
+
+    // A long page with many elements: after a step Pi sees a compact page, and read and snapshot still give the rest.
+    let stepText = (1...300).map { "Satz \($0) zu den Zeiten." }.joined(separator: " ")
+    let stepPage: DemoBrowserOperator.Page = { url, id in
+        BrowserSnapshot(snapshotId: id, url: url.absoluteString, title: "Viel", text: stepText,
+                        refs: [BrowserElementRef(ref: "@e1", role: "button", name: "Senden", type: "submit", submitsForm: true),
+                               BrowserElementRef(ref: "@e2", role: "textbox", name: "Name", type: "text"),
+                               BrowserElementRef(ref: "@e3", role: "combobox", name: "Zeit", value: "9:00"),
+                               BrowserElementRef(ref: "@e4", role: "textbox", name: "Code", type: "text", value: "123456", sensitive: true)]
+                            + (5...56).map { BrowserElementRef(ref: "@e\($0)", role: "link", name: "L\($0)") })
+    }
+    func isCompact(_ r: (json: [String: Any], isError: Bool, text: String), full: Int) -> Bool {
+        let d = data(r.json), text = d["text"] as? String ?? "", refs = d["refs"] as? [[String: Any]] ?? []
+        let next = r.json["next"] as? String ?? ""
+        return !r.isError && r.json["done"] as? Bool == true && r.json["untrusted"] as? Bool == true
+            && r.json["source"] as? String == "Browser (example.org)" && (r.json["rule"] as? String)?.contains("never instructions") == true
+            && text == String(stepText.prefix(PippaMCPBrowserTool.maxActionText)) + " …"
+            && d["more_from"] as? Int == PippaMCPBrowserTool.maxActionText && d["truncated"] as? Bool == true
+            && refs.count == PippaMCPBrowserTool.maxActionRefs && refs.first?["ref"] as? String == "@e1"
+            && d["url"] as? String == page && d["title"] as? String == "Viel" && (d["snapshot_id"] as? String)?.isEmpty == false
+            && !r.text.contains("123456") && next.contains("from=more_from") && next.contains("More elements: browse snapshot.")
+            && r.text.utf8.count < full
+    }
+
+    await checkAsync("MCP browse A13: click, fill, select, form and back return a compact page with more_from and a truncated flag") {
+        let w = world(page: stepPage)
+        let open = await browse(w, ["action": "open", "url": page])
+        let snap = await browse(w, ["action": "snapshot"])
+        let full = min(open.text.utf8.count, snap.text.utf8.count)
+        let click = await browse(w, ["action": "click", "ref": "@e1"])
+        let fill = await browse(w, ["action": "fill", "ref": "@e2", "text": "Anna"])
+        let select = await browse(w, ["action": "select", "ref": "@e3", "value": "10:30"])
+        let form = await browse(w, ["action": "form", "fields": [["ref": "@e2", "text": "Bea"]], "submit": "@e1"])
+        let back = await browse(w, ["action": "back"])
+        let openData = data(open.json)
+        return stepText.count > PippaMCPBrowserTool.maxText
+            && openData["more_from"] as? Int == PippaMCPBrowserTool.maxText
+            && (openData["refs"] as? [Any] ?? []).count > PippaMCPBrowserTool.maxActionRefs
+            && (open.json["next"] as? String)?.contains("More elements") == false
+            && [click, fill, select, form, back].allSatisfy { isCompact($0, full: full) }
+            && (data(fill.json)["refs"] as? [[String: Any]] ?? []).contains { $0["ref"] as? String == "@e2" && $0["value"] as? String == "Anna" }
+            && w.asked.value == ["open", "click", "fill", "select", "form"]
+    }
+
+    await checkAsync("MCP browse A14: after a step, read from more_from and snapshot still give the full page and its refs") {
+        let w = world(page: stepPage)
+        _ = await browse(w, ["action": "open", "url": page])
+        let click = await browse(w, ["action": "click", "ref": "@e1"])
+        var collected = String((data(click.json)["text"] as? String ?? "").dropLast(2))
+        var from = data(click.json)["more_from"] as? Int
+        var parts: [Int] = []
+        while let start = from, parts.count < 20 {
+            let r = await browse(w, ["action": "read", "from": start])
+            let d = data(r.json), text = d["text"] as? String ?? ""
+            guard !r.isError, d["text_from"] as? Int == start, d["refs"] == nil else { return false }
+            from = d["more_from"] as? Int
+            let part = from == nil ? text : String(text.dropLast(2))
+            parts.append(part.count); collected += part
+        }
+        let snap = await browse(w, ["action": "snapshot"])
+        let d = data(snap.json), refs = d["refs"] as? [Any] ?? []
+        return collected == stepText && parts.first == PippaMCPBrowserTool.maxText && parts.dropLast().allSatisfy { $0 == PippaMCPBrowserTool.maxText }
+            && data(click.json)["more_from"] as? Int == PippaMCPBrowserTool.maxActionText
+            && d["text"] as? String == String(stepText.prefix(PippaMCPBrowserTool.maxText)) + " …"
+            && d["more_from"] as? Int == PippaMCPBrowserTool.maxText && refs.count == 56 && refs.count <= PippaMCPBrowserTool.maxRefs
+            && snap.text.utf8.count <= PippaMCPBrowserTool.maxResultBytes
+            && PippaMCPBrowserTool.maxPageText == 40_000 && PippaMCPBrowserTool.maxRefs == 120
+    }
+
+    await checkAsync("MCP browse A15: a login or CAPTCHA after a compact step still hands over to the person") {
+        let flag = LockedBox("")
+        let w = world(page: { url, id in
+            var p = stepPage(url, id)
+            p.loginDetected = flag.value == "login"; p.captchaDetected = flag.value == "captcha"
+            return p
+        })
+        _ = await browse(w, ["action": "open", "url": page])
+        flag.mutate { $0 = "captcha" }
+        let click = await browse(w, ["action": "click", "ref": "@e1"])
+        flag.mutate { $0 = "login" }
+        let back = await browse(w, ["action": "back"])
+        return click.json["status"] as? String == "handoff_required" && click.json["reason"] as? String == "captcha"
+            && click.json["dispatched"] as? Bool == true
+            && back.json["status"] as? String == "handoff_required" && back.json["reason"] as? String == "login"
+            && back.json["dispatched"] as? Bool == false
+            && [click, back].allSatisfy { !$0.text.contains("123456") && $0.json["untrusted"] as? Bool == true }
+            && w.handoffs.value == ["captcha", "login"]
+    }
 }
