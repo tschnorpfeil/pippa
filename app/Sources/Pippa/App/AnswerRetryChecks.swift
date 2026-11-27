@@ -99,6 +99,21 @@ enum AnswerRetryChecks {
         chat.apply(.assistantEnded(text: "", stopReason: "error", error: "429 You exceeded your current quota (insufficient_quota)"), in: "r")
         check(answer?.error == ChatModel.limitMessage(.quota) && answer?.resumeAfter == nil && chat.retryWait == nil,
               "a used-up allowance says so and offers no Continue")
+
+        // Any other online failure: a calm sentence by its class, never the provider's raw text with keys or addresses.
+        let raw = #"503 {"error":{"message":"upstream unavailable for key sk-proj-abcdef1234567890XYZ (anna@example.com)","stack":"at /srv/app.js:1"}}"#
+        DiagnosticsLog.shared.flush()
+        let before = (try? String(contentsOf: DiagnosticsLog.shared.fileURL, encoding: .utf8)) ?? ""
+        let plain = ChatModel.modelError(raw, online: true)
+        DiagnosticsLog.shared.flush()
+        let added = ((try? String(contentsOf: DiagnosticsLog.shared.fileURL, encoding: .utf8)) ?? "").dropFirst(before.count)
+        check(plain == ModelFailure(failureClass: .unavailable).onlineText && !plain.contains("503") && !plain.contains("sk-")
+                && added.contains("ki-fehler klasse=unavailable online=true status=503") && !added.contains("anna") && !added.contains("abcdef"),
+              "an online failure reads as a calm sentence and logs only its class and status")
+        check(ChatModel.modelError("something odd {\"debug\":1}", online: true) == UserMessage.generic
+                && ChatModel.modelError("401 Unauthorized", online: true) == ChatModel.limitMessage(.signedOut)
+                && ChatModel.modelError("local failure", online: false) == "local failure",
+              "an unknown online failure gets the short fallback; sign-in keeps its sentence; local failures stay as they were")
         chat.replaceForSnapshot([], current: nil, answering: false)
         return failures == 0 ? 0 : 1
     }

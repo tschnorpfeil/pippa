@@ -117,3 +117,8 @@
 "… and %lld more" = "… and %lld more";
 "Contacts" = "Contacts";
 "Notes" = "Notes";
+"Your account with this online AI doesn’t allow this right now. Check your account, or choose another AI in Settings." = "Your account with this online AI doesn’t allow this right now. Check your account, or choose another AI in Settings.";
+"The online AI isn’t available right now. Please try again in a few minutes." = "The online AI isn’t available right now. Please try again in a few minutes.";
+"The online AI couldn’t take this request. Check the AI you chose in Settings, or ask in other words." = "The online AI couldn’t take this request. Check the AI you chose in Settings, or ask in other words.";
+"The online AI you chose can’t work with Pippa’s tools. Choose another one in Settings." = "The online AI you chose can’t work with Pippa’s tools. Choose another one in Settings.";
+"This conversation is too long for the online AI. Start a new chat, or send fewer or smaller files." = "This conversation is too long for the online AI. Start a new chat, or send fewer or smaller files.";

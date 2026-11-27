@@ -20,6 +20,33 @@ func runProviderChecks() async {
             && ["connect ECONNREFUSED 127.0.0.1:8429", "request id req_42900a failed", "read 14290 bytes"]
             .allSatisfy { PiProviderClient.problem(in: $0) == nil }
     }
+    check("Model failures fall into fixed classes, with a status code only when it stands on its own") {
+        let cases: [(String, ModelFailureClass, Int?)] = [
+            ("401 {\"error\":{\"type\":\"authentication_error\",\"message\":\"invalid x-api-key\"}}", .authentication, 401),
+            ("403 Forbidden: your organization does not have access to this model", .permission, 403),
+            ("429 Too Many Requests", .rateLimited, 429),
+            ("429 You exceeded your current quota (insufficient_quota)", .quotaExhausted, 429),
+            ("402 Payment Required", .quotaExhausted, 402),
+            ("Request timed out after 600000 ms", .timeout, nil),
+            ("504 Gateway Timeout", .timeout, 504),
+            ("529 {\"type\":\"overloaded_error\"}", .unavailable, 529),
+            ("502 Bad Gateway", .unavailable, 502),
+            ("HTTP/1.1 503 Service Unavailable", .unavailable, 503),
+            ("getaddrinfo ENOTFOUND api.openai.com", .offline, nil),
+            ("400 Bad Request: unknown parameter", .invalidRequest, 400),
+            ("404 model_not_found", .invalidRequest, 404),
+            ("400 No endpoints found that support tool use", .toolsUnsupported, 400),
+            ("This model does not support tools", .toolsUnsupported, nil),
+            ("400 prompt is too long: 210000 tokens > 200000 maximum", .contextTooLarge, 400),
+            ("413 Request Entity Too Large", .contextTooLarge, 413),
+            ("something odd happened", .unknown, nil),
+        ]
+        let noStatus = ["connect ECONNREFUSED 127.0.0.1:8429", "request id req_42900a failed", "read 14290 bytes", "read 500 bytes",
+                        "claude-3-5-sonnet-20241022 at 10.0.0.401", "port :503", "40,507 tokens", "id #401", "v1.429.2"]
+        return cases.allSatisfy { PiProviderClient.classify(errorText: $0.0) == ModelFailure(failureClass: $0.1, httpStatus: $0.2) }
+            && Set(cases.map(\.1)) == Set(ModelFailureClass.allCases)
+            && noStatus.allSatisfy { PiProviderClient.classify(errorText: $0).httpStatus == nil }
+    }
     check("After Sign in with ChatGPT the model in use stays, else Pi's default is preselected, never the oldest on the list") {
         let models = ["gpt-4", "gpt-5.5", "o3"].map { PiProvider.Model(id: $0, name: $0) }
         let openai = PiProvider(id: "openai", name: "OpenAI", configured: true, methods: [], models: models, defaultModel: "gpt-5.5")

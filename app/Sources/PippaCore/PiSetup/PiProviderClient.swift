@@ -64,6 +64,29 @@ public struct PiProviderEvent: Decodable, Sendable {
     public var endpoint: String?
 }
 
+/// A failed model turn, sorted into a fixed class: what the chat says and what the log keeps, never the raw text.
+public enum ModelFailureClass: String, Sendable, Equatable, CaseIterable {
+    case authentication, permission, rateLimited, quotaExhausted, timeout, unavailable, offline, invalidRequest,
+         toolsUnsupported, contextTooLarge, unknown
+}
+
+public struct ModelFailure: Sendable, Equatable {
+    public var failureClass: ModelFailureClass
+    /// The HTTP status the error text names on its own (100–599), if any.
+    public var httpStatus: Int?
+    public init(failureClass: ModelFailureClass, httpStatus: Int? = nil) { self.failureClass = failureClass; self.httpStatus = httpStatus }
+
+    /// The class as one of the problems the chat handles on its own.
+    public var problem: PiProviderClient.Problem? {
+        switch failureClass {
+        case .authentication: .signedOut
+        case .rateLimited: .rateLimit
+        case .quotaExhausted: .quota
+        default: nil
+        }
+    }
+}
+
 public final class PiProviderClient: @unchecked Sendable {
     public enum Failure: Error { case unavailable, failed, cancelled, portBusy, signedOut }
 
@@ -71,22 +94,63 @@ public final class PiProviderClient: @unchecked Sendable {
     /// account's allowance is used up for hours or days (Pi does not try again).
     public enum Problem: String, Sendable, Equatable { case signedOut, rateLimit, quota }
 
-    public static func problem(in errorText: String) -> Problem? {
+    /// The sign-in and limit problems the chat handles on their own (Settings button, waiting, Continue).
+    public static func problem(in errorText: String) -> Problem? { classify(errorText: errorText).problem }
+
+    /// Sorts an online AI's raw error text into a fixed class, plus its HTTP status when one stands on its own.
+    /// Words decide before status codes, in this order: a used-up allowance often comes as 429 too.
+    public static func classify(errorText: String) -> ModelFailure {
         let text = errorText.lowercased()
-        if ["401", "unauthorized", "invalid_grant", "token expired", "refresh token", "not logged in", "no api key", "sign in again"].contains(where: text.contains) {
-            return .signedOut
+        let codes = statusCodes(in: text)
+        func has(_ words: [String], in value: String = text) -> Bool { words.contains(where: value.contains) }
+        let failureClass: ModelFailureClass
+        if has(["unauthorized", "invalid_grant", "token expired", "refresh token", "not logged in", "no api key", "sign in again",
+                "invalid api key", "invalid_api_key", "incorrect api key", "authentication_error"]) || codes.contains(401) {
+            failureClass = .authentication
+        } else if has(["resource has been exhausted", "resource_exhausted"]) {
+            // Google's per-minute "429 Resource has been exhausted (e.g. check quota)." passes on, as Pi retries it.
+            failureClass = .rateLimited
+        } else if has(["usage limit", "usage_limit", "usagelimit", "quota", "limit reached", "billing", "out of budget",
+                       "available balance", "insufficient credits", "payment required"],
+                      // OpenAI's per-minute "Rate limit reached for …" is no used-up allowance.
+                      in: text.replacingOccurrences(of: "rate limit reached", with: "")) || codes.contains(402) {
+            failureClass = .quotaExhausted
+        } else if has(["rate limit", "rate_limit", "too many requests"]) || codes.contains(429) {
+            failureClass = .rateLimited
+        } else if has(["context length", "context_length", "context window", "maximum context", "prompt is too long",
+                       "too many tokens", "request too large", "payload too large", "request_too_large"]) || codes.contains(413) {
+            failureClass = .contextTooLarge
+        } else if has(["does not support tools", "does not support tool", "tools are not supported", "tool use is not supported",
+                       "support tool use", "function calling is not supported", "does not support function calling"]) {
+            failureClass = .toolsUnsupported
+        } else if has(["forbidden", "permission_denied", "permission denied", "access denied", "not allowed to",
+                       "unsupported_country", "do not have access", "does not have access"]) || codes.contains(403) {
+            failureClass = .permission
+        } else if has(["timed out", "timeout", "etimedout", "deadline exceeded", "deadline_exceeded"]) || codes.contains(408) || codes.contains(504) {
+            failureClass = .timeout
+        } else if has(["enotfound", "getaddrinfo", "enetunreach", "network is unreachable", "not connected to the internet",
+                       "internet connection appears to be offline", "eai_again", "fetch failed"]) {
+            failureClass = .offline
+        } else if has(["overloaded", "service unavailable", "bad gateway", "internal server error", "server_error", "unavailable",
+                       "econnrefused", "econnreset", "socket hang up"]) || codes.contains(where: (500...599).contains) {
+            failureClass = .unavailable
+        } else if has(["invalid_request", "bad request", "model not found", "model_not_found", "unprocessable"])
+                    || codes.contains(where: (400...499).contains) {
+            failureClass = .invalidRequest
+        } else {
+            failureClass = .unknown
         }
-        // A used-up allowance often comes as 429 too: its words decide first, as in Pi's own retry rule. OpenAI's
-        // per-minute "Rate limit reached for …" is no used-up allowance.
-        // Google's per-minute "429 Resource has been exhausted (e.g. check quota)." passes on, as Pi retries it.
-        if text.contains("resource has been exhausted") || text.contains("resource_exhausted") { return .rateLimit }
-        let allowance = text.replacingOccurrences(of: "rate limit reached", with: "")
-        if ["usage limit", "usage_limit", "usagelimit", "quota", "limit reached", "billing", "out of budget", "available balance"]
-            .contains(where: allowance.contains) { return .quota }
-        if ["rate limit", "rate_limit", "too many requests"].contains(where: text.contains) { return .rateLimit }
-        // A status code only on its own, never inside a port, byte count or request id (as in Pi's rule).
-        if text.range(of: "(?<![a-z0-9])429(?![a-z0-9])", options: .regularExpression) != nil { return .rateLimit }
-        return nil
+        return ModelFailure(failureClass: failureClass, httpStatus: codes.first)
+    }
+
+    /// Status codes only on their own, never inside a port, address, byte count, model name or request id (as in Pi's
+    /// rule): "429 Too Many Requests" and "status code 503" count, "127.0.0.1:8429", "req_42900a", "500 bytes" do not.
+    static func statusCodes(in text: String) -> [Int] {
+        let pattern = #"(?<![\w.:,/\-#])[1-5]\d\d(?![\w]|[.:,/\-]\d)(?!\s*(?:bytes?|tokens?|files?|ms|kb|mb|gb|seconds?|s\b|%))"#
+        guard let expression = try? NSRegularExpression(pattern: pattern, options: [.caseInsensitive]) else { return [] }
+        return expression.matches(in: text, range: NSRange(text.startIndex..., in: text)).compactMap {
+            Range($0.range, in: text).flatMap { Int(text[$0]) }
+        }
     }
 
     private let node: URL

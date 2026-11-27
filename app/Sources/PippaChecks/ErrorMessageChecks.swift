@@ -137,5 +137,22 @@ func runErrorMessageChecks() {
         let added = ((try? String(contentsOf: log.fileURL, encoding: .utf8)) ?? "").dropFirst(before.count)
         return added.contains("pi-werkzeug art=not_found fehler=true name=web_fetch_content") && !added.contains("not found")
     }
+    check("Online AI failures: every class has a clean sentence, and a raw error with a key and an address logs its class only") {
+        let raw = #"401 {"error":{"message":"Incorrect API key provided: sk-proj-abcdef1234567890XYZ for anna@example.com","type":"invalid_request_error","stack":"at /Users/anna/app.js:12"}}"#
+        let texts = ModelFailureClass.allCases.compactMap { ModelFailure(failureClass: $0).onlineText }
+        guard texts.count == ModelFailureClass.allCases.count - 3, offender(texts) == nil,
+              ModelFailure(failureClass: .unknown).onlineText == UserMessage.generic else { return false }
+        let failure = PiProviderClient.classify(errorText: raw)
+        let log = DiagnosticsLog(directory: dir("diagnostics-model-failure"))
+        failure.record(online: true, to: log)
+        ModelFailure(failureClass: .unknown).record(online: false, to: log)
+        log.flush()
+        let lines = ((try? String(contentsOf: log.fileURL, encoding: .utf8)) ?? "").split(separator: "\n")
+        let leaks = ["sk-proj", "abcdef", "anna", "example.com", "Users", "Incorrect", "stack", "{"]
+        return failure == ModelFailure(failureClass: .authentication, httpStatus: 401) && lines.count == 2
+            && lines[0].hasSuffix(" ki-fehler klasse=authentication online=true status=401")
+            && lines[1].hasSuffix(" ki-fehler klasse=unknown online=false")
+            && !leaks.contains { word in lines.contains { $0.contains(word) } }
+    }
     check("Log: version and build are never empty") { !AppVersion.label.isEmpty && !AppVersion.build.isEmpty }
 }
