@@ -7,7 +7,7 @@ decided on 2026-11-19 and shipped in 1.0.0. Older plans and measurements are in 
 
 ## Where Pippa stands
 
-The last release is 1.1.0. Pippa is a plain native chat front end for Pi: Pippa Island and one chat window with a
+The last release is 1.2.0. Pippa is a plain native chat front end for Pi: Pippa Island and one chat window with a
 conversation sidebar, a first-run card offering local or online AI, optional calm notices (Morning Brief and one
 watched folder, off by default), and settings for the AI (on this Mac, or an online
 AI with per-source sharing review and optional Mac access), optional abilities, the shortcut, login item, permissions
@@ -64,6 +64,8 @@ Contract: [Vision, section 5](VISION.md#5-calm-proactivity-12). Opt-in, one or t
   real menu bar); motion and drag and drop at the real notch still need a look.
 - **Real-portal browser sign-in matrix.** Multi-tab local browsing and OAuth child popups are implemented; manual
   AutoFill/Passkey testing across 5 real portals on macOS 26.2 remains open.
+
+Released in 1.2.0: For You desk with scheduled routines, natural-language routine creation, starter packs, reactive watchers and isolated read-only checks; multi-tab local browser per conversation with LRU memory eviction, real child-window OAuth sign-in popups, compact action observations, single-card form confirmations, query-free same-host links, long-page reading and an "Open in Pippa’s Browser" bridge; expandable unsent Mail draft preview cards (without a direct Send button); one-card question selection with persistent answered-question history; decoupled concurrent One PDF, per-conversation send queue with settings/sharing re-check, burst-coalesced steering and steering-aware approval cancellation; bounded `structuredContent` on MCP readers for codemode; online onboarding data-flow summary, Recommended default model badge, default `medium` effort and fixed online failure classes with privacy-safe diagnostics; local model compaction deadlock rescue for Pi 1.6.0.
 
 Released in 1.1.0: opt-in calm notices (Settings › General › Calm notices, off by default) backed by a SQLite matter store (`proactivity.sqlite`) with human-closed task permanence, a strict daily cap of at most 2 nudges/day, quiet hours + screen-lock + optional Focus status awareness, 1-click mute per kind, a 0-token Morning Brief (`DurableJobKind.morningBriefing`) from already-authorized Calendar and Reminders with a Settings preview, a single-level watched folder scanner with content-hash deduplication and Tier-0 Apple Foundation Models triage (strictly read-only, never waking oMLX in the background), and a quiet Pippa Island nudge card with menu bar fallback; reliable "Check for Updates…" and direct "Install and Restart" when a background Sparkle update waits for quit; redesigned heypippa.app website (German and English) and updated OG preview cards.
 
