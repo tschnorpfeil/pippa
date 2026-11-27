@@ -133,8 +133,18 @@ final class ChatModel: ObservableObject {
     /// The answer the running turn writes into now: its first reply, or the reply after the person's latest follow-up
     /// (`steered`). `nil` when nothing runs.
     private var activeReplyID: UUID?
-    /// A follow-up is on its way to Pi (`steer`): a second Return never sends it twice.
-    @Published private(set) var isSteering = false
+    /// Follow-ups typed in quick succession while the answer runs (`steer`), sent to Pi as one message once the person
+    /// pauses for `steerCoalesceDelay`; `pendingSteerTarget` is the conversation they belong to.
+    private var pendingSteerTexts: [String] = []
+    private var pendingSteerTarget: String?
+    private var steerFlushTask: Task<Void, Never>?
+    /// The follow-up on its way to Pi right now: the next burst goes after it, never beside it.
+    private var steerInFlight: Task<Void, Never>?
+    private var steerInFlightID: UUID?
+    /// How long Pippa waits for more follow-ups before sending them as one. Checks shorten it.
+    static var steerCoalesceDelay: Duration = .milliseconds(250)
+    /// Hands one follow-up to Pi; `false` when nothing was sent. Checks put a stand-in here.
+    var steerSender: @MainActor (String) async -> Bool = { await PiSession.shared.steer($0) }
     /// Sources of tool calls that have started but not ended.
     private var pendingSources: [String: ChatSource] = [:]
     /// Running steps that reported progress: their label without it. Notes files of running reads, by call.
@@ -152,7 +162,31 @@ final class ChatModel: ObservableObject {
     @Published var retryWait: RetryWait?
     var retryTick: Task<Void, Never>?
     private var answer: Task<Void, Never>?
+    /// The Stop clean-up of the ending answer: any queued conversation waits for it before starting Pi.
+    private var stopTask: Task<Void, Never>?
+    /// One PDF runs on its own, beside any answer: in `pdfConversationID`, writing into `pdfReplyID`.
+    @Published private(set) var isMakingPDF = false
+    @Published private(set) var pdfConversationID: String?
     private var pdfTask: Task<Void, Never>?
+    private var pdfReplyID: UUID?
+    private var pdfStarted: Date?
+    /// One message per conversation, written while another conversation answers; sent in order once that answer ends
+    /// (`drainNextQueued`), under the AI settings it was written for.
+    struct QueuedSend: Equatable {
+        var conversationID: String
+        var text: String
+        var files: [String]
+        var frontApp: String?
+        var settings: InferenceSettings
+        var settingsRevision: Int
+        var destination: ShareDestination?
+    }
+    @Published private(set) var queuedSends: [String: QueuedSend] = [:]
+    private var queuedOrder: [String] = []
+    /// Why a queued message came back into a conversation not on screen; shown when the person opens it.
+    private var queuedProblems: [String: String] = [:]
+    /// Starts a queued message's answer instead of `ask`; checks put a stand-in here so nothing reaches Pi.
+    var startQueuedForCheck: (@MainActor (QueuedSend, PiSession.Outgoing, _ destination: String?) -> Void)?
     /// "Stop" was pressed for the running answer.
     var stopRequested = false
     /// Counts answers, so a late result of an earlier one never lands on a newer one.
@@ -182,6 +216,15 @@ final class ChatModel: ObservableObject {
     var answering: Conversation? { answeringID.flatMap { id in conversations.first { $0.id == id } } }
     /// The running answer belongs to the conversation on screen (Stop shows there, not elsewhere).
     var isAnsweringHere: Bool { isAnswering && (answeringID == nil || answeringID == currentID) }
+    /// One PDF is being made in the conversation on screen (Stop shows there when nothing is typed).
+    var isMakingPDFHere: Bool { isMakingPDF && pdfConversationID == currentID }
+    /// The message waiting in the conversation on screen.
+    var queuedHere: QueuedSend? { currentID.flatMap { queuedSends[$0] } }
+    /// Another conversation answers: what is typed here may wait for it and go out afterwards (`send`).
+    var canQueueHere: Bool {
+        isAnswering && !isAnsweringHere && review == nil && queuedHere == nil
+            && (!draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !attachments.isEmpty)
+    }
 
     init() {
         load()
@@ -194,7 +237,7 @@ final class ChatModel: ObservableObject {
     // MARK: Conversations
 
     func newConversation() {
-        if let current, current.messages.isEmpty && !hasReviewHere { return }
+        if let current, current.messages.isEmpty && !hasReviewHere && queuedSends[current.id] == nil { return }
         if let currentID { saveComposer(for: currentID) }
         desk.select(nil)
         currentID = nil
@@ -224,10 +267,16 @@ final class ChatModel: ObservableObject {
             }
         }
         unseenIDs.remove(id)
+        if let queued = queuedProblems.removeValue(forKey: id) { problem = queued }
     }
 
     func delete(_ id: String) {
         guard !isAnswering || id != answeringID else { return }
+        // A deleted conversation never sends what waited in it, and its PDF never writes into it.
+        queuedSends[id] = nil
+        queuedOrder.removeAll { $0 == id }
+        queuedProblems[id] = nil
+        if pdfConversationID == id { pdfTask?.cancel(); finishPDF() }
         cancelTitleRefinement(for: id)
         unseenIDs.remove(id)
         conversations.removeAll { $0.id == id }
@@ -264,7 +313,11 @@ final class ChatModel: ObservableObject {
 
     func send() {
         let text = draft.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !isAnswering, review == nil, !text.isEmpty || !attachments.isEmpty else { return }
+        guard review == nil, !text.isEmpty || !attachments.isEmpty else { return }
+        if isAnswering {
+            if !isAnsweringHere { queue(text) }
+            return
+        }
         problem = nil
         // An online AI answers: typed words go as they are; files only after the review (issue #193). The app in front
         // and earlier undos are notes for the AI on this Mac and stay here. One the person allowed Mac access (issue #196)
@@ -284,36 +337,169 @@ final class ChatModel: ObservableObject {
         ask(text, files: limited ? [] : files, outgoing: outgoing, destination: destination?.label)
     }
 
-    /// The person may send a short follow-up into the answer running here: typed words only, no files, no review, no
-    /// PDF, and only while Pi's turn takes one (`PiSession.canSteer`: not a single question, an approved message or a
-    /// turn after the settings changed).
+    /// Another conversation answers: the composer's content waits for it, one message per conversation. Files for an
+    /// online AI that needs a review first are never queued past that review.
+    private func queue(_ text: String) {
+        guard canQueueHere else { return }
+        let settings = SettingsModel.shared.inferenceSettings
+        let destination = ShareDestination.active(settings)
+        let limited = destination != nil && !settings.allowsMacAccess(destination)
+        let files = attachments.map(\.path)
+        guard Self.outgoing(text, files: files, frontApp: frontApp, undone: [], online: limited) != nil else {
+            problem = T("Files for the online AI need a check first. Send them once Pippa has finished the other answer.", table: "App")
+            return
+        }
+        let id: String
+        if let currentID { id = currentID } else {
+            // A real conversation in the sidebar, so the waiting message has a place.
+            id = UUID().uuidString.lowercased()
+            let title = String((text.isEmpty ? files.first.map { URL(fileURLWithPath: $0).lastPathComponent } ?? "" : text).prefix(60))
+            startConversation(id, title: title)
+            if !text.isEmpty { refineTitleIfUnchanged(conversationID: id, initialTitle: title, prompt: text) }
+        }
+        queuedSends[id] = QueuedSend(conversationID: id, text: text, files: files, frontApp: frontApp,
+                                     settings: settings, settingsRevision: PiSession.shared.settingsRevision, destination: destination)
+        queuedOrder.removeAll { $0 == id }
+        queuedOrder.append(id)
+        draft = ""; attachments = []; frontApp = nil; problem = nil
+    }
+
+    /// The person takes a waiting message back: its words and files return to its composer.
+    func cancelQueued(in id: String) {
+        queuedOrder.removeAll { $0 == id }
+        guard let queued = queuedSends.removeValue(forKey: id) else { return }
+        restoreQueued(queued, problem: nil)
+    }
+
+    /// The oldest waiting message goes out once no answer runs. Only under the AI settings it was written for: after a
+    /// change (including sharing rules or capabilities) it goes back into its composer with a sentence, never to the new AI on its own.
+    func drainNextQueued(currentSettings: InferenceSettings? = nil) {
+        guard !isAnswering else { return }
+        while !queuedOrder.isEmpty {
+            let id = queuedOrder.removeFirst()
+            guard let queued = queuedSends.removeValue(forKey: id), conversations.contains(where: { $0.id == id }) else { continue }
+            let settings = currentSettings ?? SettingsModel.shared.inferenceSettings
+            let destination = ShareDestination.active(settings)
+            let limited = destination != nil && !settings.allowsMacAccess(destination)
+            let unchanged = settings == queued.settings
+                && PiSession.shared.settingsRevision == queued.settingsRevision
+                && destination == queued.destination
+            guard unchanged, let outgoing = Self.outgoing(queued.text, files: queued.files, frontApp: queued.frontApp,
+                                                          undone: limited ? [] : undoneNotes[id] ?? [], online: limited) else {
+                restoreQueued(queued, problem: T("The AI settings changed while your message waited. Check it and send it again.", table: "App"))
+                continue
+            }
+            if !limited { undoneNotes[id] = nil }
+            if let startQueuedForCheck { startQueuedForCheck(queued, outgoing, destination?.label); return }
+            ask(queued.text, files: limited ? [] : queued.files, outgoing: outgoing, in: id, destination: destination?.label)
+            return
+        }
+    }
+
+    /// Puts a waiting message back into its conversation's composer, before anything typed there since.
+    private func restoreQueued(_ queued: QueuedSend, problem: String?) {
+        let id = queued.conversationID
+        let saved = currentID == id ? ShareComposer(text: draft, files: attachments) : composers[id] ?? ShareComposer()
+        let typed = saved.text.trimmingCharacters(in: .whitespacesAndNewlines)
+        let text = typed.isEmpty ? queued.text : queued.text.isEmpty ? saved.text : queued.text + "\n\n" + saved.text
+        let files = queued.files.map { URL(fileURLWithPath: $0) } + saved.files.filter { !queued.files.contains($0.path) }
+        if currentID == id {
+            draft = text; attachments = files
+            if let problem { self.problem = problem }
+        } else {
+            composers[id] = ShareComposer(text: text, files: files)
+            if let problem { queuedProblems[id] = problem }
+        }
+    }
+
+    /// The person may send a short follow-up into the answer running here: typed words only, no files, no review, and
+    /// only while Pi's turn takes one (`PiSession.canSteer`: not a single question, an approved message or a turn after
+    /// the settings changed). Follow-ups in quick succession go as one (`steer`).
     var canSteerHere: Bool {
-        isAnsweringHere && !isSteering && review == nil && attachments.isEmpty && pdfTask == nil && PiSession.shared.canSteer
+        isAnsweringHere && review == nil && attachments.isEmpty && PiSession.shared.canSteer
     }
 
     /// Sends the draft into the running answer; Pi reads it after its current step and it shows as the person's message
-    /// (`steered`). Refused by Pi: the words go back into the composer, if nothing new was typed meanwhile.
+    /// (`steered`). Open questions of the answer are cancelled first: the follow-up replaces them. Follow-ups within
+    /// `steerCoalesceDelay` of each other go to Pi as one message. Refused by Pi: the words go back into the composer.
     func steer() {
         let text = draft.trimmingCharacters(in: .whitespacesAndNewlines)
         guard canSteerHere, !text.isEmpty else { return }
         let targetID = answeringID ?? currentID
-        isSteering = true
+        let turn = generation
         draft = ""
-        Task {
-            let accepted = await PiSession.shared.steer(text)
-            isSteering = false
-            if !accepted { restoreDraft(text, to: targetID) }
+        Approvals.shared.cancelForSteer(in: targetID)
+        pendingSteerTexts.append(text)
+        pendingSteerTarget = targetID
+        steerFlushTask?.cancel()
+        steerFlushTask = Task { [weak self] in
+            try? await Task.sleep(for: Self.steerCoalesceDelay)
+            guard !Task.isCancelled else { return }
+            await self?.flushSteer(turn: turn)
         }
     }
 
-    /// Returns undelivered follow-up text to `targetID`'s composer when nothing newer was typed there.
+    /// Sends every buffered follow-up as one, after the one still on its way. A newer `steer` meanwhile takes over.
+    /// Bound to `turn`: if the answer ended, stopped or a new answer started meanwhile, words go back to the composer.
+    private func flushSteer(turn: Int) async {
+        while let inFlight = steerInFlight {
+            await inFlight.value
+            if Task.isCancelled { return }
+        }
+        guard !Task.isCancelled, !pendingSteerTexts.isEmpty else { return }
+        let combined = pendingSteerTexts.joined(separator: "\n")
+        let targetID = pendingSteerTarget
+        pendingSteerTexts = []
+        pendingSteerTarget = nil
+        steerFlushTask = nil
+        guard generation == turn, isAnswering, !stopRequested, answeringID == targetID else {
+            restoreDraft(combined, to: targetID)
+            return
+        }
+        let token = UUID()
+        let send = Task { [weak self] in
+            guard let self else { return }
+            defer {
+                if self.steerInFlightID == token {
+                    self.steerInFlight = nil
+                    self.steerInFlightID = nil
+                }
+            }
+            guard self.generation == turn, self.isAnswering, !self.stopRequested, self.answeringID == targetID else {
+                self.restoreDraft(combined, to: targetID)
+                return
+            }
+            let accepted = await self.steerSender(combined)
+            if !accepted { self.restoreDraft(combined, to: targetID) }
+        }
+        steerInFlight = send
+        steerInFlightID = token
+        await send.value
+    }
+
+    /// Follow-ups not yet sent when the answer stops or ends go back into their composer, never into a later answer.
+    private func dropPendingSteer() {
+        steerFlushTask?.cancel()
+        steerFlushTask = nil
+        let unsent = pendingSteerTexts.joined(separator: "\n")
+        let targetID = pendingSteerTarget
+        pendingSteerTexts = []
+        pendingSteerTarget = nil
+        restoreDraft(unsent, to: targetID)
+    }
+
+    /// Returns undelivered follow-up text to `targetID`'s composer, before anything newer typed there.
     func restoreDraft(_ text: String, to targetID: String?) {
         let cleaned = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !cleaned.isEmpty else { return }
         if currentID == targetID {
-            if draft.isEmpty { draft = cleaned }
-        } else if let targetID, composers[targetID] == nil {
-            composers[targetID] = ShareComposer(text: cleaned, files: [])
+            let typed = draft.trimmingCharacters(in: .whitespacesAndNewlines)
+            draft = typed.isEmpty ? cleaned : cleaned + "\n\n" + draft
+        } else if let targetID {
+            let existing = composers[targetID] ?? ShareComposer()
+            let typed = existing.text.trimmingCharacters(in: .whitespacesAndNewlines)
+            let merged = typed.isEmpty ? cleaned : cleaned + "\n\n" + existing.text
+            composers[targetID] = ShareComposer(text: merged, files: existing.files)
         }
     }
 
@@ -442,36 +628,66 @@ final class ChatModel: ObservableObject {
         attachments = message.files.map { URL(fileURLWithPath: $0) }
     }
 
-    /// Dropped photos or PDFs, one PDF: done by the app itself, no model needed.
+    /// Dropped photos or PDFs, one PDF: done by the app itself, no model needed. It runs beside any answer and never
+    /// touches it; into a new conversation when the one on screen is answering, so the answer's words stay its own.
     func makePDF() {
-        guard !isAnswering, !attachments.isEmpty else { return }
-        let id = currentID ?? UUID().uuidString.lowercased()
-        if current == nil {
+        guard !isMakingPDF, !attachments.isEmpty else { return }
+        let files = attachments
+        let id: String
+        if let current, !(isAnswering && answeringID == current.id) { id = current.id } else {
+            id = UUID().uuidString.lowercased()
+            desk.select(id)
             startConversation(id, title: T("One PDF", table: "App"))
         }
-        let files = attachments
         append(ChatMessage(role: .user, text: T("Make one PDF", table: "App"), files: files.map(\.path)), to: id)
         save(id)
-        let reply = ChatMessage(role: .assistant, text: "")
+        let reply = ChatMessage(role: .assistant, text: T("Making one PDF…", table: "App"))
         append(reply, to: id)
         attachments = []
         let started = Date()
-        begin(started, in: id)
-        let turn = generation
-        pdfTask = Task {
+        isMakingPDF = true
+        pdfConversationID = id
+        pdfReplyID = reply.id
+        pdfStarted = started
+        pdfTask = Task { [weak self] in
             let result = await PippaMCPService.makePDF(files)
-            // Stop gave up waiting (`stop`): `end()` already cleared `pdfTask` and marked the answer stopped.
-            guard generation == turn, self.pdfTask != nil else { return }
-            let stopped = stopRequested
-            update(reply.id, in: id) { message in
+            // Stopped or deleted meanwhile (`stopPDF`, `delete`): that already settled the reply.
+            guard let self, !Task.isCancelled, self.pdfReplyID == reply.id else { return }
+            self.update(reply.id, in: id) { message in
                 message.duration = Date().timeIntervalSince(started)
-                if stopped { message.stopped = true; return }
+                message.text = ""
                 if let card = result.card { message.cards = [card] }
                 if result.failed { message.error = result.text } else if result.card == nil { message.text = result.text }
             }
-            end()
-            save(id)
+            self.finishPDF()
+            self.save(id)
         }
+    }
+
+    /// Stops the PDF being made: the reply says it stopped, at once, whatever the conversion still does.
+    func stopPDF() {
+        guard isMakingPDF else { return }
+        pdfTask?.cancel()
+        if let id = pdfConversationID, let replyID = pdfReplyID {
+            let started = pdfStarted
+            update(replyID, in: id) { message in
+                message.text = ""
+                message.stopped = true
+                message.duration = started.map { Date().timeIntervalSince($0) }
+            }
+            finishPDF()
+            save(id)
+        } else {
+            finishPDF()
+        }
+    }
+
+    private func finishPDF() {
+        isMakingPDF = false
+        pdfConversationID = nil
+        pdfReplyID = nil
+        pdfStarted = nil
+        pdfTask = nil
     }
 
     /// The button shows when everything attached is a photo or a PDF.
@@ -482,31 +698,23 @@ final class ChatModel: ObservableObject {
         }
     }
 
+    /// Stop in the composer: the answer here, otherwise the PDF being made here.
+    func stop() {
+        if isAnsweringHere { stopAnswer() } else if isMakingPDFHere { stopPDF() }
+    }
+
     /// "Stop": Pi aborts the answer and settles, the answer is marked as stopped. Should Pi not settle soon after,
     /// the answer task is cancelled, so the window never stays in "answering".
-    func stop() {
+    private func stopAnswer() {
         guard isAnswering, !stopRequested else { return }
         stopRequested = true
-        if let pdfTask {
-            pdfTask.cancel()
-            PippaMCPService.cancelNativeTurn()
-            // A PDF step that does not notice the cancellation must not leave the window in "answering".
-            let turn = generation
-            Task {
-                try? await Task.sleep(for: .seconds(3))
-                guard isAnswering, generation == turn, self.pdfTask == pdfTask, let id = answeringID else { return }
-                updateLast(in: id) { $0.stopped = true }
-                end()
-                save(id)
-            }
-            return
-        }
+        dropPendingSteer()
         waitForRetry(nil)
         let running = answer
         let targetID = answeringID
-        Task {
+        stopTask = Task { [weak self] in
             let undelivered = await PiSession.shared.stop()
-            if !undelivered.isEmpty { restoreDraft(undelivered.joined(separator: "\n"), to: targetID) }
+            if !undelivered.isEmpty { self?.restoreDraft(undelivered.joined(separator: "\n"), to: targetID) }
         }
         Task {
             try? await Task.sleep(for: .seconds(3))
@@ -542,10 +750,19 @@ final class ChatModel: ObservableObject {
         answeringID = nil
         answerStarted = nil
         answer = nil
-        pdfTask = nil
         activeReplyID = nil
         stopRequested = false
         waitForRetry(nil)
+        dropPendingSteer()
+        // Wait for any in-flight Stop clean-up before the next queued conversation starts Pi (`drainNextQueued`).
+        let pendingStop = stopTask
+        stopTask = nil
+        if !showsSample, !queuedOrder.isEmpty {
+            Task { @MainActor [weak self] in
+                await pendingStop?.value
+                self?.drainNextQueued()
+            }
+        }
     }
 
     /// What Pi receives: the person's words, then the files they added and the app they called Pippa from.

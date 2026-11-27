@@ -158,7 +158,7 @@ final class PiSession {
             if route.piModel != nil, let problem = PiProviderClient.problem(in: message) {
                 throw Failure.model(ChatModel.limitMessage(problem))
             }
-            throw Failure.model(route.online == nil && route.piModel == nil ? ChatModel.modelError(message, online: false) : message)
+            throw Failure.model(ChatModel.modelError(message, online: route.online != nil || route.piModel != nil))
         }
         if Self.steerable(outgoing, handoff: handoff), let admittedRevision, await client.isAnswering {
             allowSteering(client, revision: admittedRevision)

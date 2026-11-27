@@ -109,7 +109,8 @@ struct AnsweredQuestion: Codable, Identifiable, Equatable {
         case .allowed: answer ?? T("Allowed", table: "Views")
         case .declined: answer ?? T("Declined", table: "Views")
         case .answered: answer ?? ""
-        case .cancelled: T("Cancelled", table: "Views")
+        // A cancellation may carry its reason ("Follow-up sent"); a plain one says "Cancelled".
+        case .cancelled: answer ?? T("Cancelled", table: "Views")
         }
     }
 }
@@ -191,16 +192,26 @@ final class Approvals: ObservableObject {
         }
     }
 
-    /// The person's answer; a question already answered or cancelled is ignored.
-    func answer(_ id: String, _ response: PiUIResponse) {
+    /// The person's answer; a question already answered or cancelled is ignored. `note`: the reason a cancellation
+    /// keeps in its record instead of a plain "Cancelled".
+    func answer(_ id: String, _ response: PiUIResponse, note: String? = nil) {
         guard let continuation = waiting.removeValue(forKey: id) else { return }
         let removed = questions.first { $0.id == id }
         questions.removeAll { $0.id == id }
         if let removed {
-            let record = AnsweredQuestion.from(removed, response: response)
+            var record = AnsweredQuestion.from(removed, response: response)
+            if let note, record.outcome == .cancelled { record.answer = note }
             onAnswered?(removed, record)
         }
         continuation.resume(returning: response)
+    }
+
+    /// The person sent a follow-up into the running answer (`ChatModel.steer`): its open questions are stale, so they
+    /// are cancelled (never allowed) and Pi reads the follow-up right away. Only questions of `conversationID` when given.
+    func cancelForSteer(in conversationID: String?) {
+        for question in questions where conversationID == nil || question.conversationID == conversationID {
+            answer(question.id, .cancelled, note: T("Follow-up sent", table: "App"))
+        }
     }
 
     func cancelAll() {

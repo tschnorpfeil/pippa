@@ -121,6 +121,9 @@ enum ApprovalsChecks {
         await answeredQuestionChecks(approvals, check: check)
         await runUndoChecks(check: check)
         await runSteerChecks(check: check)
+        await runSteerBurstChecks(approvals, check: check)
+        await runQueueChecks(check: check)
+        await runPDFBesideAnswerChecks(check: check)
         failures += Int(await HeadlessAskChecks.run())
 
         print(failures == 0 ? "approvals: all checks passed" : "approvals: \(failures) failed")
@@ -296,6 +299,221 @@ extension ApprovalsChecks {
         check(chat.draft.isEmpty, "undelivered steering for another conversation never overwrites the visible composer")
         chat.select(id)
         check(chat.draft == "Für das erste Gespräch", "selecting the stopped conversation restores its preserved steering text")
+        chat.replaceForSnapshot([], current: nil, answering: false)
+    }
+
+    /// A21: follow-ups typed in quick succession go to Pi as one message, and a follow-up cancels the answer's open
+    /// question cards (never allows them), with a record that says why.
+    static func runSteerBurstChecks(_ approvals: Approvals, check: (Bool, String) -> Void) async {
+        let session = PiSession.shared, chat = ChatModel.shared
+        let saved = (chat.conversations, chat.currentID), savedSender = chat.steerSender, savedDelay = ChatModel.steerCoalesceDelay
+        let id = "steer-burst-check"
+        chat.showSample([Conversation(id: id, title: "Synthetic", updated: Date(),
+                                      messages: [ChatMessage(role: .user, text: "Frage"), ChatMessage(role: .assistant, text: "")])],
+                        current: id, answering: true)
+        let idle = PiRPCClient(configuration: PiRPCConfiguration(executable: URL(fileURLWithPath: "/usr/bin/false"),
+                                                                 workingDirectory: FileManager.default.temporaryDirectory))
+        session.allowSteering(idle, revision: session.settingsRevision)
+        var sent: [String] = []
+        chat.steerSender = { sent.append($0); return true }
+        ChatModel.steerCoalesceDelay = .milliseconds(40)
+        defer {
+            chat.steerSender = savedSender
+            ChatModel.steerCoalesceDelay = savedDelay
+            session.settingsChanged()
+            chat.showSample(saved.0, current: saved.1, answering: false)
+        }
+        func wait(until done: () -> Bool) async {
+            for _ in 0..<200 where !done() { try? await Task.sleep(for: .milliseconds(10)) }
+        }
+
+        chat.draft = "first"
+        chat.steer()
+        check(chat.canSteerHere, "a follow-up on its way never locks out the next one")
+        chat.draft = " second "
+        chat.steer()
+        check(chat.draft.isEmpty && sent.isEmpty, "rapid follow-ups leave the composer at once and wait together")
+        await wait { !sent.isEmpty }
+        try? await Task.sleep(for: .milliseconds(80))
+        check(sent == ["first\nsecond"], "two follow-ups within the window reach Pi as one message")
+
+        let card = Task {
+            await approvals.ask(PiUIRequest(id: "steer-confirm", method: "confirm", title: "Send this mail?",
+                                            message: "To: anna@example.test", options: ["Don’t Send", "Send"]))
+        }
+        for _ in 0..<5 { await Task.yield() }
+        check(approvals.questions.map(\.id) == ["steer-confirm"] && approvals.questions.first?.conversationID == id,
+              "the answer's confirmation card is open")
+        chat.draft = "Doch nicht senden"
+        chat.steer()
+        let response = await card.value
+        let record = chat.conversations.first { $0.id == id }?.messages.last?.answeredQuestions?.last
+        check(response == .cancelled && approvals.questions.isEmpty && record?.id == "steer-confirm" && record?.outcome == .cancelled
+              && record?.answer == T("Follow-up sent", table: "App") && record?.displayAnswer == T("Follow-up sent", table: "App"),
+              "a follow-up cancels the open card (never allows it) and records it as cancelled for the follow-up")
+        check(AnsweredQuestion(id: "plain", kind: .confirm, title: "x", outcome: .cancelled, answeredAt: Date()).displayAnswer
+              == T("Cancelled", table: "Views"), "a plain cancellation still says Cancelled")
+        await wait { sent.count == 2 }
+        check(sent.last == "Doch nicht senden", "the follow-up still reaches Pi after the card was cancelled")
+
+        chat.steerSender = { _ in false }
+        chat.draft = "Abgelehnt"
+        chat.steer()
+        await wait { !chat.draft.isEmpty }
+        check(chat.draft == "Abgelehnt", "a burst Pi refuses comes back into the composer")
+
+        ChatModel.steerCoalesceDelay = .seconds(30)
+        chat.steerSender = { sent.append($0); return true }
+        chat.draft = "Noch nicht raus"
+        chat.steer()
+        chat.stop()
+        check(chat.draft == "Noch nicht raus" && !sent.contains("Noch nicht raus"),
+              "Stop returns follow-ups not yet sent to the composer, and they never reach a later answer")
+        // Stop's own `PiSession.stop` cancels whichever native turn is active: it settles here, before the next check.
+        try? await Task.sleep(for: .milliseconds(200))
+    }
+
+    /// A20: a message written while another conversation answers waits there, comes back on Cancel, disappears with
+    /// its conversation, goes out once the answer ends, and never goes out under AI settings changed meanwhile.
+    static func runQueueChecks(check: (Bool, String) -> Void) async {
+        let chat = ChatModel()
+        let a = "queue-check-a", b = "queue-check-b"
+        func conversations() -> [Conversation] {
+            [Conversation(id: a, title: "A", updated: Date(), messages: [ChatMessage(role: .user, text: "Frage"), ChatMessage(role: .assistant, text: "")]),
+             Conversation(id: b, title: "B", updated: Date(), messages: [])]
+        }
+        var started: [(ChatModel.QueuedSend, PiSession.Outgoing)] = []
+        chat.startQueuedForCheck = { queued, outgoing, _ in started.append((queued, outgoing)) }
+        func answeringInA(showing current: String?) {
+            chat.replaceForSnapshot(conversations(), current: a, answering: true)
+            chat.currentID = current
+            chat.draft = ""; chat.attachments = []; chat.problem = nil
+        }
+
+        answeringInA(showing: b)
+        chat.draft = "  Und morgen?  "
+        check(chat.canQueueHere && !chat.canSteerHere, "while A answers, B may queue a message (and never steer A)")
+        chat.send()
+        check(chat.queuedSends[b]?.text == "Und morgen?" && chat.queuedHere?.conversationID == b && chat.draft.isEmpty
+              && chat.queuedSends[b]?.settingsRevision == PiSession.shared.settingsRevision,
+              "Send in B while A answers queues the message under the current settings and clears the composer")
+        chat.draft = "Noch eins"
+        check(!chat.canQueueHere, "one waiting message per conversation")
+        chat.draft = ""
+        chat.cancelQueued(in: b)
+        check(chat.queuedSends.isEmpty && chat.draft == "Und morgen?", "Cancel takes the waiting message back into the composer")
+
+        chat.send()
+        chat.delete(b)
+        chat.replaceForSnapshot(conversations(), current: a, answering: false)
+        chat.drainNextQueued()
+        check(chat.queuedSends.isEmpty && started.isEmpty, "a deleted conversation's waiting message never goes out")
+
+        answeringInA(showing: nil)
+        chat.draft = "Neues Gespräch"
+        let before = chat.conversations.count
+        chat.send()
+        let fresh = chat.currentID
+        check(chat.conversations.count == before + 1 && fresh != nil && fresh != a && chat.queuedSends[fresh ?? ""] != nil,
+              "a message queued from an empty composer gets its own conversation in the sidebar")
+        if let fresh { chat.cancelQueued(in: fresh); chat.delete(fresh) }
+
+        answeringInA(showing: b)
+        chat.draft = "Und morgen?"
+        chat.send()
+        chat.drainNextQueued()
+        check(started.isEmpty && chat.queuedSends[b] != nil, "nothing waiting goes out while the other answer still runs")
+        chat.replaceForSnapshot(conversations(), current: a, answering: false)
+        chat.drainNextQueued()
+        check(started.count == 1 && started.first?.0.conversationID == b && started.first?.0.text == "Und morgen?"
+              && chat.queuedSends.isEmpty, "once A has finished, B's waiting message goes out into B")
+
+        started = []
+        answeringInA(showing: b)
+        chat.draft = "Unter alten Einstellungen"
+        chat.send()
+        PiSession.shared.settingsChanged()
+        chat.replaceForSnapshot(conversations(), current: b, answering: false)
+        chat.draft = ""; chat.problem = nil
+        chat.drainNextQueued()
+        let changed = T("The AI settings changed while your message waited. Check it and send it again.", table: "App")
+        check(started.isEmpty && chat.queuedSends.isEmpty && chat.draft == "Unter alten Einstellungen" && chat.problem == changed,
+              "after the AI settings changed, a waiting message never goes out: it comes back with a sentence")
+
+        answeringInA(showing: b)
+        chat.draft = "Im Hintergrund"
+        chat.send()
+        PiSession.shared.settingsChanged()
+        chat.replaceForSnapshot(conversations(), current: a, answering: false)
+        chat.problem = nil
+        chat.drainNextQueued()
+        check(started.isEmpty && chat.problem == nil, "a changed waiting message in another conversation says nothing here")
+        chat.select(b)
+        check(chat.draft == "Im Hintergrund" && chat.problem == changed, "opening its conversation shows the message and why it came back")
+
+        // Changing sharing rules or capabilities without bumping settingsRevision still blocks auto-send (R3).
+        started = []
+        answeringInA(showing: b)
+        chat.draft = "Mit geänderten Regeln"
+        chat.send()
+        var altered = SettingsModel.shared.inferenceSettings
+        altered.sharing.mail = altered.sharing.mail == .localOnly ? .ask : .localOnly
+        chat.replaceForSnapshot(conversations(), current: b, answering: false)
+        chat.draft = ""; chat.problem = nil
+        chat.drainNextQueued(currentSettings: altered)
+        check(started.isEmpty && chat.queuedSends.isEmpty && chat.draft == "Mit geänderten Regeln" && chat.problem == changed,
+              "changed sharing rules or capabilities without a settings revision bump still block a queued message")
+
+        // Restoring an undelivered follow-up never drops text typed meanwhile (R4).
+        chat.draft = "Neuer Satz"
+        chat.restoreDraft("Alter Nachtrag", to: b)
+        check(chat.draft == "Alter Nachtrag\n\nNeuer Satz",
+              "restoring an undelivered follow-up preserves newer text already in the composer")
+        chat.replaceForSnapshot([], current: nil, answering: false)
+    }
+
+    /// A19: One PDF beside a running answer: its own turn never replaces or cancels the answer's, in the MCP host or in
+    /// the chat, and both finish on their own.
+    static func runPDFBesideAnswerChecks(check: (Bool, String) -> Void) async {
+        let savedBase = PippaMCPService.baseHost
+        // The demo host has no job journal: the conversion fails at once, without touching a real file.
+        PippaMCPService.baseHost = { .demo() }
+        defer { PippaMCPService.baseHost = savedBase }
+        let answer = PippaMCPTurn()
+        PippaMCPService.currentHost.turns.begin(answer)
+        let fresh = !answer.writes.snapshot.cancelled
+        let result = await PippaMCPService.makePDF([URL(fileURLWithPath: "/synthetic/Scan.pdf")])
+        check(fresh && PippaMCPService.currentHost.turns.active === answer && !answer.writes.snapshot.cancelled && result.failed,
+              "One PDF never replaces or cancels the running answer's turn and writes")
+        PippaMCPService.currentHost.turns.end(answer)
+        check(PippaMCPService.currentHost.turns.active == nil, "the answer's turn still ends on its own")
+
+        let chat = ChatModel()
+        let a = "pdf-check-a", b = "pdf-check-b"
+        chat.replaceForSnapshot([Conversation(id: a, title: "A", updated: Date(), messages: [ChatMessage(role: .user, text: "Frage"), ChatMessage(role: .assistant, text: "")]),
+                                 Conversation(id: b, title: "B", updated: Date(), messages: [])], current: a, answering: true)
+        chat.currentID = b
+        chat.attachments = [URL(fileURLWithPath: "/synthetic/Scan.pdf")]
+        chat.makePDF()
+        check(chat.isMakingPDF && chat.pdfConversationID == b && chat.isAnswering && chat.answeringID == a && chat.attachments.isEmpty,
+              "One PDF starts in B while A answers, without touching A's answer")
+        for _ in 0..<300 where chat.isMakingPDF { try? await Task.sleep(for: .milliseconds(10)) }
+        let reply = chat.conversations.first { $0.id == b }?.messages.last
+        check(!chat.isMakingPDF && chat.isAnswering && chat.answeringID == a && reply?.role == .assistant && reply?.error != nil,
+              "the PDF finishes on its own while A still answers")
+
+        chat.currentID = a
+        chat.attachments = [URL(fileURLWithPath: "/synthetic/Scan.pdf")]
+        let count = chat.conversations.count
+        chat.makePDF()
+        check(chat.pdfConversationID != a && chat.conversations.count == count + 1
+              && chat.conversations.first { $0.id == a }?.messages.count == 2,
+              "One PDF from the answering conversation goes into a new one, so the answer's words stay its own")
+        chat.stopPDF()
+        let stopped = chat.conversations.first { $0.id == chat.currentID }?.messages.last
+        check(!chat.isMakingPDF && stopped?.stopped == true && chat.isAnswering, "Stop ends the PDF at once and leaves the answer running")
+        // The cancelled job settles under the demo host before the real one comes back.
+        try? await Task.sleep(for: .milliseconds(200))
         chat.replaceForSnapshot([], current: nil, answering: false)
     }
 

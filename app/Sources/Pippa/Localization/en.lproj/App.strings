@@ -343,3 +343,13 @@
 "Save as routine…" = "Save as routine…";
 "Watching quietly" = "Watching quietly";
 "What Pippa prepared for you" = "What Pippa prepared for you";
+
+/* Sending while another conversation answers, follow-ups and One PDF beside an answer (ChatModel, Composer). */
+"Making one PDF…" = "Making one PDF…";
+"Follow-up sent" = "Follow-up sent";
+"Queued" = "Queued";
+"Take the message back to edit it; nothing is sent" = "Take the message back to edit it; nothing is sent";
+"Goes out when Pippa has finished the other answer" = "Goes out when Pippa has finished the other answer";
+"Send when Pippa has finished the other answer" = "Send when Pippa has finished the other answer";
+"Files for the online AI need a check first. Send them once Pippa has finished the other answer." = "Files for the online AI need a check first. Send them once Pippa has finished the other answer.";
+"The AI settings changed while your message waited. Check it and send it again." = "The AI settings changed while your message waited. Check it and send it again.";

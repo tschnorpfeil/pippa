@@ -34,16 +34,26 @@ enum PippaMCPService {
 
     static func cancelNativeTurn() { currentHost.turns.active?.cancelWrites() }
 
-    /// Photos and PDFs into one PDF without the model: the same tool Pi calls, started by a button.
+    /// Photos and PDFs into one PDF without the model: the same tool Pi calls, started by a button. It runs in a turn
+    /// registry of its own, never in `currentHost.turns`: beginning there would cancel a running answer's writes, and
+    /// that answer's Stop never reaches this job. Cancelling the calling task stops it.
     static func makePDF(_ files: [URL]) async -> (card: ResultCard?, text: String, failed: Bool) {
         let turn = PippaMCPTurn()
-        begin(turn)
+        var host = currentHost
+        host.turns = PippaMCPTurns()
+        host.onWrite = nil
+        host.onRead = nil
+        host.turns.begin(turn)
         defer {
-            end(turn)
+            host.turns.end(turn)
             // Its receipts belong to no chat answer: collected here, so they never land under the next one.
             _ = writeNotes.take(turnID: turn.id, at: \.turnID)
         }
-        let result = await PippaMCPFilePreparation(host: currentHost, turn: turn, scope: turn.writes).call(["paths": files.map(\.path)])
+        let preparation = PippaMCPFilePreparation(host: host, turn: turn, scope: turn.writes)
+        let paths = files.map(\.path)
+        let result = await withTaskCancellationHandler {
+            await preparation.call(["paths": paths])
+        } onCancel: { turn.cancelWrites() }
         let note = PippaMCPFilePreparation.readNote(for: result, turnID: turn.id)
         return (note.card, note.line, result.isError)
     }

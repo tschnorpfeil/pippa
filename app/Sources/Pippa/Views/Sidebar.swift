@@ -32,7 +32,9 @@ struct Sidebar: View {
                     ForEach(group.items) { conversation in
                         ConversationRow(conversation: conversation,
                                         selected: !showingForYou.wrappedValue && conversation.id == chat.currentID,
-                                        answering: chat.isAnswering && chat.answeringID == conversation.id,
+                                        answering: (chat.isAnswering && chat.answeringID == conversation.id)
+                                            || (chat.isMakingPDF && chat.pdfConversationID == conversation.id),
+                                        queued: chat.queuedSends[conversation.id] != nil,
                                         unseen: chat.unseenIDs.contains(conversation.id),
                                         snippet: query.isEmpty ? nil : Self.snippet(conversation, query: query),
                                         canDelete: !(chat.isAnswering && chat.answeringID == conversation.id),
@@ -229,6 +231,8 @@ private struct ConversationRow: View {
     var conversation: Conversation
     var selected: Bool
     var answering: Bool
+    /// A message waits here until the answer in another conversation ends.
+    var queued: Bool
     var unseen: Bool
     /// While searching: where the words were found.
     var snippet: String?
@@ -329,13 +333,16 @@ private struct ConversationRow: View {
         if keep { commitRename(nameState.wrappedValue) } else { cancelRename() }
     }
 
-    /// What the row shows at its end: answering, a new answer, pinned; on hover the menu instead.
+    /// What the row shows at its end: answering, a waiting message, a new answer, pinned; on hover the menu instead.
     private var trailing: some View {
         ZStack {
             Group {
                 if answering {
                     SpinRing(size: 12, lineWidth: 1.6)
                         .accessibilityLabel(T("Answering…", table: "App"))
+                } else if queued {
+                    Image(systemName: "clock").font(Typo.caption).imageScale(.small).foregroundStyle(Theme.ink3)
+                        .accessibilityLabel(T("Queued", table: "App"))
                 } else if unseen {
                     Circle().fill(Theme.accent).frame(width: 7, height: 7)
                         .accessibilityLabel(T("New answer", table: "App"))

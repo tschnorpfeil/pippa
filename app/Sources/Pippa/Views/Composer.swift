@@ -23,6 +23,8 @@ struct Composer: View {
         !(chat.draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && chat.attachments.isEmpty)
     }
     private var canSend: Bool { setup.canAnswer && !chat.isAnswering && hasContent }
+    /// Another conversation answers: Send lets this message wait and go out afterwards (`ChatModel.canQueueHere`).
+    private var canQueue: Bool { setup.canAnswer && chat.canQueueHere }
     /// A follow-up for the answer running here (`ChatModel.canSteerHere`): typed words, nothing attached.
     private var canSteer: Bool { chat.canSteerHere && !chat.draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
 
@@ -66,7 +68,7 @@ struct Composer: View {
                     }
                 }
             }
-            if chat.canMakePDF && !chat.isAnswering {
+            if chat.canMakePDF && !chat.isMakingPDF {
                 Button { chat.makePDF() } label: {
                     Label(T("One PDF", table: "App"), systemImage: "doc.richtext").font(Typo.footnote.weight(.medium))
                 }
@@ -84,6 +86,7 @@ struct Composer: View {
     private var card: some View {
         VStack(alignment: .leading, spacing: Space.ml) {
             if chat.review == nil, let parked = chat.parkedReview { parkedRow(parked) }
+            if let queued = chat.queuedHere { queuedRow(queued).transition(.opacity) }
             TextField(setup.canAnswer ? T("Ask Pippa…", table: "App") : T("Drop photos or PDFs for One PDF, or set up an AI above…", table: "App"),
                       text: $chat.draft, axis: .vertical)
                 .textFieldStyle(.plain).font(Typo.body).lineSpacing(4).lineLimit(1...10)
@@ -94,7 +97,7 @@ struct Composer: View {
                     }
                     updateOffersRoutine()
                 }
-                .onSubmit { if canSend { chat.send() } else if canSteer { chat.steer() } }
+                .onSubmit { if canSend || canQueue { chat.send() } else if canSteer { chat.steer() } }
                 .padding(.horizontal, Space.xs)
             if let problem = chat.problem {
                 Text(problem).font(Typo.footnote).foregroundStyle(Theme.need).fixedSize(horizontal: false, vertical: true)
@@ -115,6 +118,27 @@ struct Composer: View {
         .animation(Theme.quick, value: focused)
         .animation(Theme.quick, value: canSteer)
         .animation(Theme.quick, value: offersRoutine)
+        .animation(Theme.quick, value: chat.queuedHere)
+    }
+
+    /// The message waiting here while another conversation answers: it goes out once that answer ends, or comes back.
+    private func queuedRow(_ queued: ChatModel.QueuedSend) -> some View {
+        let preview = queued.text.isEmpty ? queued.files.map { URL(fileURLWithPath: $0).lastPathComponent }.joined(separator: ", ") : queued.text
+        return HStack(spacing: Space.m) {
+            Image(systemName: "clock").foregroundStyle(Theme.ink3).accessibilityHidden(true)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(T("Queued", table: "App")).font(Typo.footnote.weight(.medium))
+                Text(preview).font(Typo.caption).foregroundStyle(Theme.ink2).lineLimit(1).truncationMode(.tail)
+            }
+            Spacer(minLength: Space.m)
+            Button(T("Cancel", table: "App")) { chat.cancelQueued(in: queued.conversationID) }
+                .controlSize(.small)
+                .help(T("Take the message back to edit it; nothing is sent", table: "App"))
+        }
+        .font(Typo.footnote).foregroundStyle(Theme.ink)
+        .padding(.horizontal, Space.xs)
+        .accessibilityElement(children: .contain)
+        .help(T("Goes out when Pippa has finished the other answer", table: "App"))
     }
 
     /// The words ask for something regular ("every weekday at 8 …"): offer to keep it as a routine instead.
@@ -224,12 +248,14 @@ struct Composer: View {
     /// One 32 pt circle in one place: Send (the accent as soon as there is something to send, quiet grey before), or
     /// Stop while the answer here runs, a quiet disc with a square inside a turning ring. The symbol turns into the other.
     private var sendButton: some View {
-        let stops = chat.isAnsweringHere
-        let fill = !stops && canSend ? Theme.accentFill : nil
+        // Stop for the answer here, or for the PDF being made here while nothing is typed.
+        let stops = chat.isAnsweringHere || (chat.isMakingPDFHere && !hasContent)
+        let sends = canSend || canQueue
+        let fill = !stops && sends ? Theme.accentFill : nil
         return Button { stops ? chat.stop() : chat.send() } label: {
             Image(systemName: stops ? "stop.fill" : "arrow.up")
                 .font(stops ? Typo.caption.weight(.bold) : Typo.callout.weight(.bold))
-                .foregroundStyle(stops ? Theme.ink : canSend ? Color.white : Theme.ink3)
+                .foregroundStyle(stops ? Theme.ink : sends ? Color.white : Theme.ink3)
                 .contentTransition(.symbolEffect(.replace))
                 .frame(width: 32, height: 32)
                 .glassCircle(tint: fill, fallback: fill ?? Theme.sendDisabled)
@@ -239,10 +265,11 @@ struct Composer: View {
         }
         .buttonStyle(.plain)
         .keyboardShortcut(stops ? KeyboardShortcut(".", modifiers: .command) : KeyboardShortcut(.return, modifiers: .command))
-        .disabled(!stops && !canSend)
-        .animation(Theme.quick, value: canSend)
+        .disabled(!stops && !sends)
+        .animation(Theme.quick, value: sends)
         .animation(Theme.quick, value: stops)
         .help(stops ? T("Stop", table: "App") + " (⌘.)"
+              : canQueue ? T("Send when Pippa has finished the other answer", table: "App") + " (↩)"
               : chat.isAnswering ? T("Pippa is still answering in another conversation.", table: "App") : T("Send", table: "App") + " (↩)")
         .accessibilityLabel(stops ? T("Stop", table: "App") : T("Send", table: "App"))
     }
