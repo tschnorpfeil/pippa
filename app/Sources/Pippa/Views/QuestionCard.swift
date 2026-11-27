@@ -95,25 +95,31 @@ struct QuestionCard: View {
                 }
                 if choices.allowsCustomText {
                     let active = fieldFocused || validatedText != nil
-                    TextField(text: textState.projectedValue,
-                              prompt: Text(T("Or type your own answer…", table: "Views")).foregroundStyle(Theme.ink3),
-                              axis: .horizontal) { EmptyView() }
-                        .textFieldStyle(.plain).font(Typo.callout).foregroundStyle(Theme.ink)
-                        .lineLimit(1...1)
-                        .focused($fieldFocused)
-                        .onChange(of: textState.wrappedValue) { _, newValue in
-                            if !newValue.isEmpty, selectedOptionState.wrappedValue != nil {
-                                withAnimation(Theme.quick) { selectedOptionState.wrappedValue = nil }
+                    ZStack(alignment: .leading) {
+                        if textState.wrappedValue.isEmpty {
+                            Text(T("Or type your own answer…", table: "Views"))
+                                .font(Typo.callout)
+                                .foregroundStyle(Theme.ink3)
+                                .allowsHitTesting(false)
+                        }
+                        TextField("", text: textState.projectedValue, axis: .horizontal)
+                            .textFieldStyle(.plain).font(Typo.callout).foregroundStyle(Theme.ink)
+                            .lineLimit(1...1)
+                            .focused($fieldFocused)
+                            .onChange(of: textState.wrappedValue) { _, newValue in
+                                if !newValue.isEmpty, selectedOptionState.wrappedValue != nil {
+                                    withAnimation(Theme.quick) { selectedOptionState.wrappedValue = nil }
+                                }
                             }
-                        }
-                        .onSubmit { submitSelect() }
-                        .padding(.horizontal, Space.ml).padding(.vertical, Space.m)
-                        .background(Theme.chatInset, in: RoundedRectangle(cornerRadius: Radius.control, style: .continuous))
-                        .overlay {
-                            RoundedRectangle(cornerRadius: Radius.control, style: .continuous)
-                                .strokeBorder(active ? Theme.accent.opacity(0.55) : Theme.hairline, lineWidth: 1)
-                        }
-                        .accessibilityLabel(T("Or type your own answer…", table: "Views"))
+                            .onSubmit { submitSelect() }
+                            .accessibilityLabel(T("Or type your own answer…", table: "Views"))
+                    }
+                    .padding(.horizontal, Space.ml).padding(.vertical, Space.m)
+                    .background(Theme.chatInset, in: RoundedRectangle(cornerRadius: Radius.control, style: .continuous))
+                    .overlay {
+                        RoundedRectangle(cornerRadius: Radius.control, style: .continuous)
+                            .strokeBorder(active ? Theme.accent.opacity(0.55) : Theme.hairline, lineWidth: 1)
+                    }
                 }
                 HStack(spacing: Space.m) {
                     Spacer(minLength: 0)
@@ -126,7 +132,6 @@ struct QuestionCard: View {
                         submitSelect()
                     }
                     .disabled(!canSubmitSelect)
-                    .opacity(canSubmitSelect ? 1 : 0.45)
                 }
             }
         default:
@@ -145,7 +150,6 @@ struct QuestionCard: View {
                     ActionPill(title: T("Cancel", table: "App"), shortcut: escape) { answer(.cancelled) }
                     ActionPill(title: T("OK", table: "App"), primary: true) { submitInput() }
                         .disabled(!canSubmitInput)
-                        .opacity(canSubmitInput ? 1 : 0.45)
                 }
             }
         }

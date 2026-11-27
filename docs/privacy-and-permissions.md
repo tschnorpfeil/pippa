@@ -31,7 +31,9 @@ Online AI is off until you turn it on in Settings. Only one online service can b
 the other off. Settings always says where Pippa's AI runs.
 
 **Connect and choose.** Settings lists the providers, chat models, and authentication methods supported by the bundled
-Pi release. Sign in in your browser or enter an API key, choose a model, and press **Use [provider]**. Connecting an
+Pi release. Before sign-in, the setup sheet shows a brief summary of how data flows (direct to the chosen provider with
+no middleman, Mac content only after your review, and switching back anytime). Sign in in your browser or enter an API
+key, choose a model, and press **Use [provider]**. Connecting an
 account alone does not activate online conversations. The screen names the recipient before activation.
 **Use this Mac** turns online conversations off and keeps the provider connected.
 
@@ -100,7 +102,7 @@ until it finishes or you press Stop. Messages you approve in a review and single
 | Update checks | Once a day, from this repository's releases. Updates install when you quit or after a while without input. |
 | Web searches | The first search in a conversation shows you the exact search text and waits for your OK. Your OK covers later searches in that conversation; a new conversation asks again. |
 | Reading web pages | Pages from your own message or from that answer's search results are read without asking again. Any other address is asked for. Addresses on your Mac or your local network are never read. |
-| Pippa's browser | With the AI on this Mac, Pippa opens a page that needs clicking through in a browser panel in her window; open the window (from Pippa Island: **Open Pippa**) to watch along or to sign in. She asks before each new website and before every click, typed text or choice. A whole form is one question that lists every value she will type or choose and where the form goes. Following a plain link to another page of the website she is on, once you allowed that website in the same answer, doesn't ask again: it opens that address, the same as if she had opened it herself. Links with extra parameters in the address, links to other websites and buttons still ask. Sign-ins, passwords, codes and "I'm not a robot" checks are left to you; she never asks for your password. Cookies and sign-ins stay on your Mac. Addresses on your Mac or your local network are never opened. |
+| Pippa's browser | With the AI on this Mac, each conversation keeps its own browser tab in Pippa's panel (open the window, or from Pippa Island press **Open Pippa**, to watch along or sign in; inactive tabs release memory automatically while keeping their address). She asks before each new website and before every click, typed text or choice. A whole form is one question that lists every value she will type or choose and where the form goes. Following a plain link to another page of the website she is on, once you allowed that website in the same answer, doesn't ask again: it opens that address, the same as if she had opened it herself. Links with extra parameters in the address, links to other websites and buttons still ask. Sign-ins, passwords, codes and "I'm not a robot" checks are left to you; sign-in popups open inside the panel under the same address guards, and she never asks for your password. Cookies and sign-ins stay on your Mac. Addresses on your Mac or your local network are never opened. Online AI browsing uses a separate temporary view with no cookies and no popups. |
 | Provider setup | Browser sign-in, credential setup, and model catalog refresh when requested in Settings. No conversation contents. |
 | Online AI | Only while you have it switched on, or for one question you sent with **Ask [provider]…**: what you typed and what you checked and shared (see above). When it says "too many requests", Pippa waits 15, 30, 60 and 60 seconds, shows the countdown and continues. If it is still at its limit, the answer ends with **Continue**, which you can press after a minute. A used-up allowance is named as such. |
 | Commands that go online | Pippa's command-line helper asks before each command that goes online, such as downloading a file. A yes covers that one command. |
@@ -187,7 +189,7 @@ given. Check results, especially for actions you didn't expect.
   forget one, or edit the file. She keeps at most 30, and refuses account, card, ID, tax and phone numbers and passwords.
   Only the AI on this Mac uses them; an online AI gets them only with **Allow Mac access**.
 - **Stored on your Mac.** Facts, conversations and task records are stored on your Mac.
-- **A log without contents.** The log in `~/Library/Logs/Pippa` records the version and events, not file contents.
+- **A log without contents.** The log in `~/Library/Logs/Pippa` records the version and events (such as AI error classes and HTTP status codes), never file or conversation contents.
 
 ## Where Pippa keeps things
 

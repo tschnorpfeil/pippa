@@ -309,6 +309,7 @@ struct MailDraftCardView: View {
             Spacer(minLength: 0)
         }
         .padding(.horizontal, Space.card)
+        .padding(.bottom, Space.xs)
     }
 
     private func copyBody() {

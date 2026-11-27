@@ -47,7 +47,10 @@ both folders or without an answer makes the batch unclear and stops the run. Und
 identity in the target was read after the move and is unchanged. `mail_send` sends one draft Pippa
 saved in this conversation, after the card. `codemode` is on only for an online AI with Mac access. The AI on this Mac
 stays `direct`. `PIPPA_MCP_EXPOSURE` in `runtime/pippa-tools/pippa-mcp.ts` sets it per Pi process: `direct`,
-`direct+codemode` for the Mac-access route, or `codemode` for measuring only.
+`direct+codemode` for the Mac-access route, or `codemode` for measuring only. For `codemode` scripts, the MCP readers
+(`mail_search`, `mail_folders`, `calendar_read`, `reminders_read`, `notes_read`, `contacts_search`) also attach bounded
+`structuredContent` (up to 128 KB; `PippaMCPOutput.swift`), while the model-facing text block stays within 8 KB and
+errors/refusals emit no structured payload.
 
 **Action classes.** Every tool has exactly one class in one table, `PippaActionClasses.table` in
 `app/Sources/PippaCore/MCP/PippaMCPActionClass.swift`: `read`, `undoable`, `irreversible` or `external`. A tool
@@ -59,7 +62,12 @@ command before a command goes online and keeps no yes for a later call. Changing
 still asked once per answer, with copies of the files the command names. `browse` keeps its own question per step
 (`PippaActionClasses.asksPerStep`): a `form` step (several fields and an optional submit) is one question that lists every
 value, a plain link without a query to another page of the current host, allowed in the same answer, loads like `open` without one, and `read` pages through the text of
-the latest snapshot (up to 40,000 characters, 2,500 at a time).
+the latest snapshot (up to 40,000 characters, 2,500 at a time). Acting steps (`click`, `fill`, `select`, `form`, `back`)
+return a compact page view (800 characters and 40 refs) so multi-step flows stay light, while `open`, `snapshot` and
+handoffs keep the full page. In the local window (`WKBrowserSession`), each conversation keeps its own browser tab on
+`WKWebsiteDataStore.default()` (at most 3 live `WKWebView`s, evicting the oldest idle tab while keeping its URL and
+title), supports real child-window OAuth popups under the same URL and private-DNS guards, and lets web source chips
+open directly in Pippa's browser panel.
 
 **Run journal.** `app/Sources/PippaCore/RunJournal.swift` writes one row per action into `journal.sqlite` before the
 action starts, as `dispatched`, and after it reads the object back from its source (a mail by Message-ID in the target
@@ -76,7 +84,9 @@ rows, with one Undo for the whole answer that walks the rows backwards and skips
 keeps the person's own. `PiRPCClient` reads `auto_retry_start` and `auto_retry_end` and the chat and Pippa Island show
 the countdown with Stop (`abort_retry`). When the retries run out on a rate limit, the answer offers **Continue** after
 60 seconds, which sends one follow-up to the same Pi session. `PiProviderClient` tells a rate limit from a used-up
-allowance, and only a rate limit gets Continue.
+allowance, and only a rate limit gets Continue. Other online model failures are classified into fixed `ModelFailureClass`
+categories (`Diagnostics.swift`), shown as calm sentences and logged via `ki-fehler` with only class and HTTP status
+(never prompt or response text).
 
 Settings → AI switches web search (pi-web-access) separately for the AI on this Mac and the online AI, and personal
 notes (`pippa-memory.ts`) for the AI on this Mac (`InferenceSettings.capabilities`; missing values mean on). Off leaves
@@ -134,15 +144,22 @@ tool is registered (`PiNativeReadiness`).
 
 **Cards and receipts.** Pi's `tool_execution_start` and `tool_execution_end` events say what ran. `PiTurnReceipt`
 turns them into one line per call that changed something, never from model text: `move_files` to the Trash is a
-trash line, any other destination a move. Cards for mail, events, reminders, photos and prepared PDFs come from the
-in-process MCP server's own read and write notes (`PippaMCPService`), so no `structuredContent` round trip is needed.
+trash line, any other destination a move. Cards for mail, expandable unsent Mail drafts (`MailDraftCardView`, with
+preview, Copy and **Open in Mail**, never direct send), events, reminders, photos and prepared PDFs come from the
+in-process MCP server's own read and write notes (`PippaMCPService`). Answered approvals and `ask` choices stay as
+dimmed read-only `AnsweredQuestion` rows on `ChatMessage`.
+
+**Concurrency and follow-ups (`ChatModel`).** The composer's **One PDF** action (`PippaMCPService.makePDF`) runs in its
+own `PippaMCPTurns` alongside an active answer. Other conversations can queue one pending message while Pippa answers
+elsewhere; on dequeue, Pippa re-verifies settings, sharing rules and destination before sending. Mid-turn follow-ups
+coalesce rapid bursts (250 ms) and cancel open approval cards before injecting steering into Pi.
 
 **Pippa's extensions (`runtime/pippa-tools`).**
 
 - `pippa-tools.ts`: `search_files` (`search.mjs`; content, file name and folder search in the home folder and iCloud
   Drive, newest first; an empty result never proves absence and says to search once more with other words), `ask`
-  (`ask.ts`; one question with 2-4 choices and "Something else…" for the person's own words, shown through Pi's
-  `select`/`input` as a card in the chat and on Pippa Island; a closed card or a run without the app tells the model to
+  (`ask.ts`; one question with 2-4 choices shown as direct selectable rows plus an inline free-text field in the chat
+  and on Pippa Island through Pi's `select`/`input`; a closed card or a run without the app tells the model to
   go on with the most likely reading and name it; `--ask` declines it, so it ends as `needs_input`), `list_folder` (`list-folder.ts`), `move_files`
   (`files.ts`; never overwrites; the Trash through `/usr/bin/trash`). It also shortens the parameter texts of Pi's
   built-in tools and caps each result to the context window (`budget.ts`), and wraps `bash` in a macOS sandbox
@@ -202,7 +219,12 @@ compaction per model in Pi's `settings.json`. See [Updating Pi](updating-pi.md).
 `PiProviderClient` and `runtime/pippa-auth/pi-providers.mjs`. The helper uses public `ModelRuntime` APIs; interactive
 prompts are correlated JSONL over stdin/stdout. Credentials stay in Pi’s credential store and routing persists only
 provider/model metadata (`InferenceSettings.piModel`). `PiSession` passes the selected provider/model directly to Pi.
-Provider setup and online chat do not require a local model download. The model must be explicitly selected; catalog order is not treated as a recommended default. Browser, device-code, API-key, optional text,
+Provider setup and online chat do not require a local model download. Before sign-in, `OnlineSetupSheet` shows a short
+3-step data-flow summary (`OnlineDataFlowStrip`). When a provider catalog names a `defaultModel`, Pippa places it first
+with a **Recommended** badge (`PiProvider.orderedModels()`), while activation still requires an explicit **Use [provider]**
+click. `pi-providers.mjs` also reports each model's `supportedEfforts`, and `PiModelTuning` defaults reasoning-capable
+online models to `medium` in Pi's `settings.json` unless a per-model or global default effort is already configured.
+Browser, device-code, API-key, optional text,
 secret, and select prompts use the same bridge. Pi owns credential refresh and provider-specific behavior.
 
 Older `subscriptionModel` settings map to Pi’s `openai` provider. Existing Keychain connections retain their old

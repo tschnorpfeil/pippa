@@ -949,7 +949,7 @@ extension ApprovalsChecks {
         check(dPopup != nil && d.popupWebView === dPopup && live() == ["c", "d", "f"] && b.webView == nil && e.webView == nil,
               "browser A23: an inactive tab with an open sign-in popup is never evicted while idle tabs give back their views")
         if let dPopup { pool.webViewDidClose(dPopup) }
-        let g = open("g")
+        open("g")
         check(live() == ["c", "f", "g"] && d.webView == nil,
               "browser A23: once its popup closes, an idle tab gives back its view when the pool grows")
 
