@@ -73,6 +73,84 @@ struct SettingsStatus: View {
     }
 }
 
+/// Calm pill marking Pi's recommended model for a provider.
+struct RecommendedBadge: View {
+    var body: some View {
+        Text(T("Recommended", table: "Settings"))
+            .font(Typo.caption.weight(.medium))
+            .foregroundStyle(Theme.accent)
+            .padding(.horizontal, Space.m)
+            .padding(.vertical, Space.xxs)
+            .background(Theme.accentTint, in: Capsule())
+            .fixedSize()
+    }
+}
+
+/// Visual 3-step summary shown before online sign-in: where typed text goes, what stays gated, and how to switch back.
+struct OnlineDataFlowStrip: View {
+    var providerName: String?
+
+    private var destination: String {
+        providerName ?? T("Chosen provider", table: "Settings")
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: Space.m) {
+            HStack(spacing: Space.s) {
+                flowNode(symbol: "laptopcomputer", label: T("This Mac", table: "Settings"))
+                flowConnector
+                Image(systemName: "lock.fill")
+                    .font(Typo.caption)
+                    .foregroundStyle(Theme.ink3)
+                flowConnector
+                flowNode(symbol: "cloud", label: destination)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(T("Data flow: This Mac directly to %@", table: "Settings", destination))
+
+            VStack(alignment: .leading, spacing: Space.xs) {
+                point(symbol: "arrow.right", text: T("Direct to the provider, no middleman", table: "Settings"))
+                point(symbol: "eye", text: T("Mail, files, Calendar, Reminders & Photos only after you review", table: "Settings"))
+                point(symbol: "arrow.uturn.backward", text: T("Switch back to this Mac anytime", table: "Settings"))
+            }
+        }
+        .padding(.horizontal, Space.l)
+        .padding(.vertical, Space.ml)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Theme.chatInset, in: RoundedRectangle(cornerRadius: Radius.control, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: Radius.control, style: .continuous)
+                .strokeBorder(Theme.hairline, lineWidth: 1)
+        }
+    }
+
+    private func flowNode(symbol: String, label: String) -> some View {
+        HStack(spacing: Space.xs) {
+            Image(systemName: symbol).font(Typo.footnote).foregroundStyle(Theme.ink2)
+            Text(label).font(Typo.footnote.weight(.medium)).foregroundStyle(Theme.ink).lineLimit(1)
+        }
+    }
+
+    private var flowConnector: some View {
+        Rectangle().fill(Theme.hairline).frame(height: 1).frame(maxWidth: 28)
+    }
+
+    private func point(symbol: String, text: String) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: Space.s) {
+            Image(systemName: symbol)
+                .font(Typo.caption)
+                .foregroundStyle(Theme.ink3)
+                .frame(width: 14, alignment: .center)
+                .accessibilityHidden(true)
+            Text(text)
+                .font(Typo.footnote)
+                .foregroundStyle(Theme.ink2)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+}
+
 /// One row in a group: title, explanation, control.
 struct SettingsRow<Trailing: View>: View {
     var title: String

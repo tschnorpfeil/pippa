@@ -51,9 +51,15 @@ func runProviderChecks() async {
         let models = ["gpt-4", "gpt-5.5", "o3"].map { PiProvider.Model(id: $0, name: $0) }
         let openai = PiProvider(id: "openai", name: "OpenAI", configured: true, methods: [], models: models, defaultModel: "gpt-5.5")
         let unknownDefault = PiProvider(id: "x", name: "X", configured: true, methods: [], models: models, defaultModel: "gone")
-        let decoded = try? JSONDecoder().decode(PiProvider.self, from: Data(#"{"id":"a","name":"A","configured":false,"methods":[],"models":[]}"#.utf8))
+        let noDefault = PiProvider(id: "y", name: "Y", configured: true, methods: [], models: models)
+        let decoded = try? JSONDecoder().decode(PiProvider.self, from: Data(#"{"id":"a","name":"A","configured":false,"methods":[],"models":[{"id":"m1","name":"M1"},{"id":"m2","name":"M2","supportedEfforts":["off","low","medium","high"]}]}"#.utf8))
         return openai.preselected("o3") == "o3" && openai.preselected(nil) == "gpt-5.5" && openai.preselected("removed") == "gpt-5.5"
             && unknownDefault.preselected(nil) == "" && decoded?.defaultModel == nil
+            && openai.orderedModels().map(\.id) == ["gpt-5.5", "gpt-4", "o3"]
+            && unknownDefault.orderedModels().map(\.id) == ["gpt-4", "gpt-5.5", "o3"]
+            && noDefault.orderedModels().map(\.id) == ["gpt-4", "gpt-5.5", "o3"]
+            && decoded?.models.first?.supportedEfforts == nil
+            && decoded?.models.last?.supportedEfforts == ["off", "low", "medium", "high"]
     }
     check("Pi routing persists provider/model metadata, defaults to local, and preserves old ChatGPT selections") {
         let base = root.appendingPathComponent("provider-settings")

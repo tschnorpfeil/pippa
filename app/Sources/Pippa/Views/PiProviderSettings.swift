@@ -29,7 +29,7 @@ struct PiProviderSettings: View {
     private var blocked: Bool { provider.busy || settings.isActiveWork }
     private var active: PiModelSelection? { settings.inferenceSettings.activePiModel }
     private var matchingModels: [PiProvider.Model] {
-        (provider.selected?.models ?? []).filter {
+        (provider.selected?.orderedModels() ?? []).filter {
             modelSearch.isEmpty || $0.name.localizedCaseInsensitiveContains(modelSearch) || $0.id.localizedCaseInsensitiveContains(modelSearch)
         }
     }
@@ -128,6 +128,9 @@ struct PiProviderSettings: View {
             if !selected.configured || selected.models.isEmpty {
                 SettingsDivider()
                 VStack(alignment: .leading, spacing: Space.l) {
+                    if !selected.configured {
+                        OnlineDataFlowStrip(providerName: selected.name)
+                    }
                     ForEach(selected.methods) { method in
                         Button(method.name) { provider.connect(method: method.id) }.pippa(.secondary).disabled(blocked)
                     }
@@ -174,6 +177,7 @@ struct PiProviderSettings: View {
                             Button { provider.modelID = model.id } label: {
                                 HStack(spacing: Space.m) {
                                     Text(modelName(model)).foregroundStyle(Theme.ink).lineLimit(1)
+                                    if model.id == selected.defaultModel { RecommendedBadge() }
                                     Spacer(minLength: Space.xs)
                                     if chosen { Image(systemName: "checkmark").foregroundStyle(Theme.accent) }
                                 }
@@ -225,8 +229,14 @@ struct PiProviderSettings: View {
     /// Signing in only connects; this button, naming the provider, is what sends conversations there.
     private func useSelected(_ selected: PiProvider) {
         guard let model = selected.models.first(where: { $0.id == provider.modelID }) else { return }
-        do { try settings.saveInferenceSettings(FirstRunSetup.activated(settings.inferenceSettings, provider: selected, model: model)) }
-        catch { provider.report(error) }
+        do {
+            try settings.saveInferenceSettings(FirstRunSetup.activated(settings.inferenceSettings, provider: selected, model: model))
+            if let (roots, agent) = try? PiSession.installation(ProcessInfo.processInfo.environment) {
+                PiInstaller(roots: roots).writeOnlineModelEffort(providerID: selected.id, modelID: model.id,
+                                                                 supportedEfforts: model.supportedEfforts,
+                                                                 agentDirectory: agent)
+            }
+        } catch { provider.report(error) }
     }
 }
 

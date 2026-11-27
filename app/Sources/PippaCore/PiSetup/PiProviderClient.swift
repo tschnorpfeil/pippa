@@ -9,7 +9,10 @@ public struct PiProvider: Codable, Sendable, Identifiable, Equatable {
     public struct Model: Codable, Sendable, Identifiable, Equatable {
         public var id: String
         public var name: String
-        public init(id: String, name: String) { self.id = id; self.name = name }
+        public var supportedEfforts: [String]?
+        public init(id: String, name: String, supportedEfforts: [String]? = nil) {
+            self.id = id; self.name = name; self.supportedEfforts = supportedEfforts
+        }
     }
     public var id: String
     public var name: String
@@ -22,6 +25,17 @@ public struct PiProvider: Codable, Sendable, Identifiable, Equatable {
     public init(id: String, name: String, configured: Bool, methods: [Method], models: [Model], defaultModel: String? = nil) {
         self.id = id; self.name = name; self.configured = configured; self.methods = methods; self.models = models
         self.defaultModel = defaultModel
+    }
+
+    /// Places `defaultModel` first (when listed) while preserving the relative order of all remaining models.
+    public func orderedModels() -> [Model] {
+        guard let defaultModel, let index = models.firstIndex(where: { $0.id == defaultModel }), index > 0 else {
+            return models
+        }
+        var result = models
+        let preferred = result.remove(at: index)
+        result.insert(preferred, at: 0)
+        return result
     }
 
     /// The model to preselect: the one in use, else Pi's default, else nothing (the person picks).

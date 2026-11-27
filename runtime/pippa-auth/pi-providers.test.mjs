@@ -34,6 +34,27 @@ test('catalog exposes public methods and chat models, using only available model
   assert.equal('defaultModel' in named[1], false);
 });
 
+test('catalog emits supportedEfforts matching Pi thinkingLevelMap rules and omits it when reasoning is absent', () => {
+  const runtime = {
+    getProviders: () => [{ id: 'p', name: 'P', auth: {} }],
+    getProviderAuthStatus: () => ({ configured: true }),
+    getAvailableSnapshot: () => [
+      { provider: 'p', id: 'default-reasoning', name: 'Default Reasoning', reasoning: true },
+      { provider: 'p', id: 'mapped', name: 'Mapped', reasoning: true, thinkingLevelMap: { minimal: null, high: 'high', xhigh: 'xhigh', max: null } },
+      { provider: 'p', id: 'with-max', name: 'With Max', reasoning: true, thinkingLevelMap: { off: null, low: 'low', medium: 'medium', max: 'max' } },
+      { provider: 'p', id: 'non-reasoning', name: 'Non Reasoning', reasoning: false },
+      { provider: 'p', id: 'unknown', name: 'Unknown' },
+    ],
+    getModels: () => [],
+  };
+  const models = catalog(runtime, { p: 'mapped' }).providers[0].models;
+  assert.deepEqual(models[0].supportedEfforts, ['off', 'minimal', 'low', 'medium', 'high']);
+  assert.deepEqual(models[1].supportedEfforts, ['off', 'low', 'medium', 'high', 'xhigh']);
+  assert.deepEqual(models[2].supportedEfforts, ['minimal', 'low', 'medium', 'high', 'max']);
+  assert.deepEqual(models[3].supportedEfforts, ['off']);
+  assert.equal('supportedEfforts' in models[4], false);
+});
+
 test('generic text, secret, manual-code and select prompts use correlated stdin replies without echoing credentials', async () => {
   const lines = [], controller = new AbortController();
   const io = interaction(value => lines.push(value), controller.signal);
