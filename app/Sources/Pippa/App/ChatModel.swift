@@ -641,8 +641,10 @@ final class ChatModel: ObservableObject {
         attachments = []
         let id: String
         if let current, !(isAnswering && answeringID == current.id) { id = current.id } else {
-            if let previousID = currentID { saveComposer(for: previousID) }
-            draft = ""; frontApp = nil
+            if let previousID = currentID {
+                saveComposer(for: previousID)
+                draft = ""; frontApp = nil
+            }
             id = UUID().uuidString.lowercased()
             desk.select(id)
             startConversation(id, title: T("One PDF", table: "App"))

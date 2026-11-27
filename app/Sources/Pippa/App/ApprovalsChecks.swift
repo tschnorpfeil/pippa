@@ -523,6 +523,14 @@ extension ApprovalsChecks {
               && newComposerClean && chat.draft == "Entwurf in A" && chat.attachments.isEmpty,
               "One PDF from the answering conversation goes into a new one and keeps the answering conversation's unsent draft")
         check(!chat.isMakingPDF && stopped?.stopped == true && chat.isAnswering, "Stop ends the PDF at once and leaves the answer running")
+        // S7: One PDF from a fresh empty composer (currentID == nil) keeps whatever text the person typed alongside the files.
+        chat.currentID = nil
+        chat.draft = "Bitte kurz prüfen"
+        chat.attachments = [URL(fileURLWithPath: "/synthetic/Scan.pdf")]
+        chat.makePDF()
+        let keptNewDraft = chat.draft == "Bitte kurz prüfen" && chat.attachments.isEmpty && chat.currentID != nil
+        chat.stopPDF()
+        check(keptNewDraft, "One PDF from a fresh conversation preserves unsent text typed alongside the attached files")
         // The cancelled job settles under the demo host before the real one comes back.
         try? await Task.sleep(for: .milliseconds(200))
         chat.replaceForSnapshot([], current: nil, answering: false)
